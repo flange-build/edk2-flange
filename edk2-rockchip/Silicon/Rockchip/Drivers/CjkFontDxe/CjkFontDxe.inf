@@ -1,0 +1,41 @@
+## @file
+#
+#  Simple font package with the GB 2312 glyphs from GNU Unifont.
+#
+#  Copyright (c) 2026, Eric Wu <eric3u@outlook.com>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#  The glyph data in CjkFontGlyphs.c is licensed under the SIL Open Font
+#  License, Version 1.1, see Unifont-OFL.txt.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = CjkFontDxe
+  FILE_GUID                      = 07b1fa32-9c4f-4927-aa83-96c1ac3fe158
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = CjkFontDxeInitialize
+
+[Sources]
+  CjkFontDxe.c
+  CjkFontDxe.h
+  CjkFontGlyphs.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  HiiLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+
+[Depex]
+  gEfiHiiDatabaseProtocolGuid
