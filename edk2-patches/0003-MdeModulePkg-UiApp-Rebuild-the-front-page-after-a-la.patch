@@ -1,0 +1,100 @@
+From dd94d5d9c7170a7c059745d34e5af47c24d5e46a Mon Sep 17 00:00:00 2001
+From: Eric Wu <eric3u@outlook.com>
+Date: Tue, 29 Sep 2026 23:13:20 +0800
+Subject: [PATCH 3/9] MdeModulePkg/UiApp: Rebuild the front page after a
+ language change
+
+The front page lists the other formsets, Device Manager, Boot Manager and
+so on, under copies of their titles and help that it takes when it is
+built, in whatever language is current at the time. Picking another
+language in the same front page leaves those entries in the old one.
+
+Build the front page form again once the language has changed. The
+question IDs move to FrontPageCustomizedUiSupport.h so the callback can
+recognize the language question.
+
+Signed-off-by: Eric Wu <eric3u@outlook.com>
+---
+ MdeModulePkg/Application/UiApp/FrontPage.h            |  9 +++++++++
+ .../Application/UiApp/FrontPageCustomizedUi.c         | 11 +++++++++++
+ .../Application/UiApp/FrontPageCustomizedUiSupport.c  |  5 -----
+ .../Application/UiApp/FrontPageCustomizedUiSupport.h  |  5 +++++
+ 4 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/MdeModulePkg/Application/UiApp/FrontPage.h b/MdeModulePkg/Application/UiApp/FrontPage.h
+index dca9ceed7b..d817c0e7a3 100644
+--- a/MdeModulePkg/Application/UiApp/FrontPage.h
++++ b/MdeModulePkg/Application/UiApp/FrontPage.h
+@@ -149,6 +149,15 @@ FrontPageCallback (
+   OUT EFI_BROWSER_ACTION_REQUEST            *ActionRequest
+   );
+ 
++/**
++  Update the menus in the front page.
++
++**/
++VOID
++UpdateFrontPageForm (
++  VOID
++  );
++
+ /**
+   Initialize HII information for the FrontPage
+ 
+diff --git a/MdeModulePkg/Application/UiApp/FrontPageCustomizedUi.c b/MdeModulePkg/Application/UiApp/FrontPageCustomizedUi.c
+index f2458ec5a0..af5c1aca43 100644
+--- a/MdeModulePkg/Application/UiApp/FrontPageCustomizedUi.c
++++ b/MdeModulePkg/Application/UiApp/FrontPageCustomizedUi.c
+@@ -91,6 +91,17 @@ UiFrontPageCallbackHandler (
+   EFI_STATUS  Status;
+ 
+   if (UiSupportLibCallbackHandler (HiiHandle, Action, QuestionId, Type, Value, ActionRequest, &Status)) {
++    //
++    // The entries leading to the other formsets show copies of their titles,
++    // taken in whatever language was current when the front page was built.
++    // Build it again once the language has changed, or they stay in the old one.
++    //
++    if (!EFI_ERROR (Status) && (Action == EFI_BROWSER_ACTION_CHANGED) &&
++        (QuestionId == FRONT_PAGE_KEY_LANGUAGE))
++    {
++      UpdateFrontPageForm ();
++    }
++
+     return Status;
+   }
+ 
+diff --git a/MdeModulePkg/Application/UiApp/FrontPageCustomizedUiSupport.c b/MdeModulePkg/Application/UiApp/FrontPageCustomizedUiSupport.c
+index ef6b527d18..b6b1944b6e 100644
+--- a/MdeModulePkg/Application/UiApp/FrontPageCustomizedUiSupport.c
++++ b/MdeModulePkg/Application/UiApp/FrontPageCustomizedUiSupport.c
+@@ -34,11 +34,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+ 
+ #define UI_HII_DRIVER_LIST_SIZE  0x8
+ 
+-#define FRONT_PAGE_KEY_CONTINUE  0x1000
+-#define FRONT_PAGE_KEY_RESET     0x1001
+-#define FRONT_PAGE_KEY_LANGUAGE  0x1002
+-#define FRONT_PAGE_KEY_DRIVER    0x2000
+-
+ typedef struct {
+   EFI_STRING_ID    PromptId;
+   EFI_STRING_ID    HelpId;
+diff --git a/MdeModulePkg/Application/UiApp/FrontPageCustomizedUiSupport.h b/MdeModulePkg/Application/UiApp/FrontPageCustomizedUiSupport.h
+index 972ab35e9d..14255d0ab6 100644
+--- a/MdeModulePkg/Application/UiApp/FrontPageCustomizedUiSupport.h
++++ b/MdeModulePkg/Application/UiApp/FrontPageCustomizedUiSupport.h
+@@ -8,6 +8,11 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+ 
+ #pragma once
+ 
++#define FRONT_PAGE_KEY_CONTINUE  0x1000
++#define FRONT_PAGE_KEY_RESET     0x1001
++#define FRONT_PAGE_KEY_LANGUAGE  0x1002
++#define FRONT_PAGE_KEY_DRIVER    0x2000
++
+ /**
+   Create continue menu in the front page.
+ 
+-- 
+2.43.0
+

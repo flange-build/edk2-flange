@@ -1,0 +1,39 @@
+From 58298a783206bc6dc1408eb25e12b67274cf043c Mon Sep 17 00:00:00 2001
+From: Eric Wu <eric3u@outlook.com>
+Date: Tue, 29 Sep 2026 23:13:37 +0800
+Subject: [PATCH 9/9] EmbeddedPkg/MemoryAttributeManagerDxe: Add Simplified
+ Chinese strings
+
+Translate the Memory Attribute Protocol form into Simplified Chinese
+(zh-Hans), with \wide and \narrow markers around the hanzi.
+
+Signed-off-by: Eric Wu <eric3u@outlook.com>
+---
+ .../MemoryAttributeManagerDxeHii.uni                        | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/EmbeddedPkg/Drivers/MemoryAttributeManagerDxe/MemoryAttributeManagerDxeHii.uni b/EmbeddedPkg/Drivers/MemoryAttributeManagerDxe/MemoryAttributeManagerDxeHii.uni
+index ab6776f302..d5cba00764 100644
+--- a/EmbeddedPkg/Drivers/MemoryAttributeManagerDxe/MemoryAttributeManagerDxeHii.uni
++++ b/EmbeddedPkg/Drivers/MemoryAttributeManagerDxe/MemoryAttributeManagerDxeHii.uni
+@@ -7,11 +7,17 @@
+ // **/
+ 
+ #langdef en-US  "English"
++#langdef zh-Hans "\wide简体中文\narrow"
+ 
+ #string STR_NULL_STRING                                    #language en-US ""
++                                                           #language zh-Hans  ""
+ 
+ #string STR_FORM_SET_TITLE                                 #language en-US "EFI Memory Attribute Protocol"
++                                                           #language zh-Hans "EFI \wide内存属性协议\narrow"
+ #string STR_FORM_SET_TITLE_HELP                            #language en-US "Configure the state of the EFI Memory Attribute Protocol.\n\n"
+                                                                            "Some old OS loader versions (e.g. as found in CentOS Stream 9) do not properly support the protocol and may cause a Synchronous Exception. This security feature can be disabled to work around the issue; otherwise it should be kept enabled."
++                                                           #language zh-Hans "\wide配置\narrow EFI \wide内存属性协议的状态。\narrow\n\n"
++                                                                             "\wide部分旧版操作系统加载程序（如\narrow CentOS Stream 9 \wide中所带的版本）未正确支持该协议，可能引发同步异常（\narrowSynchronous Exception\wide）。可禁用此安全功能以规避该问题，否则应保持启用。\narrow"
+ 
+ #string STR_ENABLE_PROTOCOL_PROMPT                         #language en-US "Enable Protocol"
++                                                           #language zh-Hans "\wide启用协议\narrow"
+-- 
+2.43.0
+

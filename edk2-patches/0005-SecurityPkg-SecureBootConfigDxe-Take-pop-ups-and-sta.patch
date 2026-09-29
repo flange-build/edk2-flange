@@ -1,0 +1,443 @@
+From 22549d0fea32acb07350abca264954d7a7210ae9 Mon Sep 17 00:00:00 2001
+From: Eric Wu <eric3u@outlook.com>
+Date: Tue, 29 Sep 2026 23:13:20 +0800
+Subject: [PATCH 5/9] SecurityPkg/SecureBootConfigDxe: Take pop-ups and state
+ from HII
+
+The pop-ups of the Secure Boot configuration, from the confirmation to
+delete PK to the reasons a key cannot be enrolled, are literals in the
+code, and so is the Enabled/Disabled shown for the current state. The
+latter is also set with HiiSetString() and no language, which writes the
+same English word into every language the package has.
+
+Move the pop-up text into the string package and show it through a small
+helper, and set the state from two new strings one language at a time.
+
+Signed-off-by: Eric Wu <eric3u@outlook.com>
+---
+ .../SecureBootConfigImpl.c                    | 241 ++++++++++++------
+ .../SecureBootConfigStrings.uni               |  21 ++
+ 2 files changed, 185 insertions(+), 77 deletions(-)
+
+diff --git a/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigImpl.c b/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigImpl.c
+index 1b3b51eea7..8f9d3af659 100644
+--- a/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigImpl.c
++++ b/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigImpl.c
+@@ -105,17 +105,15 @@ CHAR16  *mSupportX509Suffix = L"*.cer/der/crt";
+ //
+ // Prompt strings during certificate enrollment.
+ //
+-CHAR16  *mX509EnrollPromptTitle[] = {
+-  L"",
+-  L"ERROR: Unsupported file type!",
+-  L"ERROR: Unsupported certificate!",
+-  NULL
++EFI_STRING_ID  mX509EnrollPromptTitle[] = {
++  0,
++  STRING_TOKEN (STR_POPUP_UNSUPPORTED_FILE_TYPE),
++  STRING_TOKEN (STR_POPUP_UNSUPPORTED_CERTIFICATE),
+ };
+-CHAR16  *mX509EnrollPromptString[] = {
+-  L"",
+-  L"Only DER encoded certificate file (*.cer/der/crt) is supported.",
+-  L"Public key length should be equal to or greater than 2048 bits.",
+-  NULL
++EFI_STRING_ID  mX509EnrollPromptString[] = {
++  0,
++  STRING_TOKEN (STR_POPUP_ONLY_DER_FILE),
++  STRING_TOKEN (STR_POPUP_KEY_TOO_SHORT),
+ };
+ 
+ SECUREBOOT_CONFIG_PRIVATE_DATA  *gSecureBootPrivateData = NULL;
+@@ -3290,6 +3288,91 @@ ON_EXIT:
+   return Status;
+ }
+ 
++/**
++  Set a string to the text of another, one language at a time.
++
++  HiiSetString() without a language puts the same text in every language,
++  which for words the user reads means the same language in all of them.
++
++  @param[in]    HiiHandle           The package list the strings are in.
++  @param[in]    Target              The string to set.
++  @param[in]    Source              The string to take the text from.
++
++**/
++STATIC
++VOID
++SetStringFromString (
++  IN EFI_HII_HANDLE  HiiHandle,
++  IN EFI_STRING_ID   Target,
++  IN EFI_STRING_ID   Source
++  )
++{
++  CHAR8       *Languages;
++  CHAR8       *Language;
++  CHAR8       *Next;
++  EFI_STRING  String;
++
++  Languages = HiiGetSupportedLanguages (HiiHandle);
++  if (Languages == NULL) {
++    return;
++  }
++
++  for (Language = Languages; *Language != '\0'; Language = Next) {
++    for (Next = Language; (*Next != '\0') && (*Next != ';'); Next++) {
++    }
++
++    if (*Next == ';') {
++      *Next++ = '\0';
++    }
++
++    String = HiiGetString (HiiHandle, Source, Language);
++    if (String != NULL) {
++      HiiSetString (HiiHandle, Target, String, Language);
++      FreePool (String);
++    }
++  }
++
++  FreePool (Languages);
++}
++
++/**
++  Show a pop-up made of this driver's strings, in the current language, and
++  wait for a key.
++
++  @param[in]    Private             Module's private data.
++  @param[out]   Key                 The key the pop-up was dismissed with.
++  @param[in]    Line1               The first line.
++  @param[in]    Line2               The second line, or 0 for none.
++
++**/
++STATIC
++VOID
++SecureBootPopUp (
++  IN  SECUREBOOT_CONFIG_PRIVATE_DATA  *Private,
++  OUT EFI_INPUT_KEY                   *Key,
++  IN  EFI_STRING_ID                   Line1,
++  IN  EFI_STRING_ID                   Line2
++  )
++{
++  EFI_STRING  String1;
++  EFI_STRING  String2;
++
++  Key->ScanCode    = SCAN_NULL;
++  Key->UnicodeChar = CHAR_NULL;
++
++  String1 = HiiGetString (Private->HiiHandle, Line1, NULL);
++  String2 = (Line2 != 0) ? HiiGetString (Private->HiiHandle, Line2, NULL) : NULL;
++
++  if (String1 != NULL) {
++    CreatePopUp (EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE, Key, String1, String2, NULL);
++    FreePool (String1);
++  }
++
++  if (String2 != NULL) {
++    FreePool (String2);
++  }
++}
++
+ /**
+ 
+   Update SecureBoot strings based on new Secure Boot Mode State. String includes STR_SECURE_BOOT_STATE_CONTENT
+@@ -3318,11 +3401,13 @@ UpdateSecureBootString (
+     return EFI_NOT_FOUND;
+   }
+ 
+-  if (*SecureBoot == SECURE_BOOT_MODE_ENABLE) {
+-    HiiSetString (Private->HiiHandle, STRING_TOKEN (STR_SECURE_BOOT_STATE_CONTENT), L"Enabled", NULL);
+-  } else {
+-    HiiSetString (Private->HiiHandle, STRING_TOKEN (STR_SECURE_BOOT_STATE_CONTENT), L"Disabled", NULL);
+-  }
++  SetStringFromString (
++    Private->HiiHandle,
++    STRING_TOKEN (STR_SECURE_BOOT_STATE_CONTENT),
++    (*SecureBoot == SECURE_BOOT_MODE_ENABLE) ?
++    STRING_TOKEN (STR_SECURE_BOOT_STATE_ENABLED) :
++    STRING_TOKEN (STR_SECURE_BOOT_STATE_DISABLED)
++    );
+ 
+   FreePool (SecureBoot);
+ 
+@@ -4537,6 +4622,8 @@ SecureBootCallback (
+   UINT8                           *SecureBootMode;
+   UINT8                           *SetupMode;
+   CHAR16                          PromptString[100];
++  EFI_STRING                      PromptTitle;
++  EFI_STRING                      PromptFormat;
+   EFI_DEVICE_PATH_PROTOCOL        *File;
+   UINTN                           NameLength;
+   UINT16                          *FilePostFix;
+@@ -4630,19 +4717,19 @@ SecureBootCallback (
+         if (NULL != SecureBootEnable) {
+           FreePool (SecureBootEnable);
+           if (EFI_ERROR (SaveSecureBootVariable (Value->u8))) {
+-            CreatePopUp (
+-              EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++            SecureBootPopUp (
++              Private,
+               &Key,
+-              L"Only Physical Presence User could disable secure boot!",
+-              NULL
++              STRING_TOKEN (STR_POPUP_PP_DISABLE_SECURE_BOOT),
++              0
+               );
+             Status = EFI_UNSUPPORTED;
+           } else {
+-            CreatePopUp (
+-              EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++            SecureBootPopUp (
++              Private,
+               &Key,
+-              L"Configuration changed, please reset the platform to take effect!",
+-              NULL
++              STRING_TOKEN (STR_POPUP_RESET_TO_TAKE_EFFECT),
++              0
+               );
+           }
+         }
+@@ -4750,21 +4837,20 @@ SecureBootCallback (
+ 
+       case KEY_SECURE_BOOT_DELETE_PK:
+         if (Value->u8) {
+-          CreatePopUp (
+-            EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++          SecureBootPopUp (
++            Private,
+             &Key,
+-            L"Are you sure you want to delete PK? Secure boot will be disabled!",
+-            L"Press 'Y' to delete PK and exit, 'N' to discard change and return",
+-            NULL
++            STRING_TOKEN (STR_POPUP_DELETE_PK_CONFIRM),
++            STRING_TOKEN (STR_POPUP_DELETE_PK_OPTIONS)
+             );
+           if ((Key.UnicodeChar == 'y') || (Key.UnicodeChar == 'Y')) {
+             Status = DeletePlatformKey ();
+             if (EFI_ERROR (Status)) {
+-              CreatePopUp (
+-                EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++              SecureBootPopUp (
++                Private,
+                 &Key,
+-                L"Only Physical Presence User could delete PK in custom mode!",
+-                NULL
++                STRING_TOKEN (STR_POPUP_PP_DELETE_PK),
++                0
+                 );
+             } else {
+               SecureBootExtractConfigFromVariable (Private, IfrNvData);
+@@ -4813,12 +4899,11 @@ SecureBootCallback (
+       // Delete all signature list and reload.
+       //
+       case KEY_SECURE_BOOT_DELETE_ALL_LIST:
+-        CreatePopUp (
+-          EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++        SecureBootPopUp (
++          Private,
+           &Key,
+-          L"Press 'Y' to delete signature list.",
+-          L"Press other key to cancel and exit.",
+-          NULL
++          STRING_TOKEN (STR_POPUP_DELETE_SIGNATURE_LIST),
++          STRING_TOKEN (STR_POPUP_OTHER_KEY_TO_CANCEL)
+           );
+ 
+         if ((Key.UnicodeChar == L'Y') || (Key.UnicodeChar == L'y')) {
+@@ -4838,12 +4923,11 @@ SecureBootCallback (
+       // Delete one signature list and reload.
+       //
+       case KEY_SECURE_BOOT_DELETE_ALL_DATA:
+-        CreatePopUp (
+-          EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++        SecureBootPopUp (
++          Private,
+           &Key,
+-          L"Press 'Y' to delete signature data.",
+-          L"Press other key to cancel and exit.",
+-          NULL
++          STRING_TOKEN (STR_POPUP_DELETE_SIGNATURE_DATA),
++          STRING_TOKEN (STR_POPUP_OTHER_KEY_TO_CANCEL)
+           );
+ 
+         if ((Key.UnicodeChar == L'Y') || (Key.UnicodeChar == L'y')) {
+@@ -4863,12 +4947,11 @@ SecureBootCallback (
+       // Delete checked signature data and reload.
+       //
+       case KEY_SECURE_BOOT_DELETE_CHECK_DATA:
+-        CreatePopUp (
+-          EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++        SecureBootPopUp (
++          Private,
+           &Key,
+-          L"Press 'Y' to delete signature data.",
+-          L"Press other key to cancel and exit.",
+-          NULL
++          STRING_TOKEN (STR_POPUP_DELETE_SIGNATURE_DATA),
++          STRING_TOKEN (STR_POPUP_OTHER_KEY_TO_CANCEL)
+           );
+ 
+         if ((Key.UnicodeChar == L'Y') || (Key.UnicodeChar == L'y')) {
+@@ -4899,12 +4982,11 @@ SecureBootCallback (
+       case KEY_VALUE_SAVE_AND_EXIT_KEK:
+         Status = EnrollKeyExchangeKey (Private);
+         if (EFI_ERROR (Status)) {
+-          CreatePopUp (
+-            EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++          SecureBootPopUp (
++            Private,
+             &Key,
+-            L"ERROR: Unsupported file type!",
+-            L"Only supports DER-encoded X509 certificate",
+-            NULL
++            STRING_TOKEN (STR_POPUP_UNSUPPORTED_FILE_TYPE),
++            STRING_TOKEN (STR_POPUP_ONLY_X509)
+             );
+         }
+ 
+@@ -4913,12 +4995,11 @@ SecureBootCallback (
+       case KEY_VALUE_SAVE_AND_EXIT_DB:
+         Status = EnrollSignatureDatabase (Private, EFI_IMAGE_SECURITY_DATABASE);
+         if (EFI_ERROR (Status)) {
+-          CreatePopUp (
+-            EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++          SecureBootPopUp (
++            Private,
+             &Key,
+-            L"ERROR: Unsupported file type!",
+-            L"Only supports DER-encoded X509 certificate and executable EFI image",
+-            NULL
++            STRING_TOKEN (STR_POPUP_UNSUPPORTED_FILE_TYPE),
++            STRING_TOKEN (STR_POPUP_ONLY_X509_OR_IMAGE)
+             );
+         }
+ 
+@@ -4926,11 +5007,11 @@ SecureBootCallback (
+ 
+       case KEY_VALUE_SAVE_AND_EXIT_DBX:
+         if (IsX509CertInDbx (Private, EFI_IMAGE_SECURITY_DATABASE1)) {
+-          CreatePopUp (
+-            EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++          SecureBootPopUp (
++            Private,
+             &Key,
+-            L"Enrollment failed! Same certificate had already been in the dbx!",
+-            NULL
++            STRING_TOKEN (STR_POPUP_ALREADY_IN_DBX),
++            0
+             );
+ 
+           //
+@@ -4954,12 +5035,11 @@ SecureBootCallback (
+         }
+ 
+         if (EFI_ERROR (Status)) {
+-          CreatePopUp (
+-            EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++          SecureBootPopUp (
++            Private,
+             &Key,
+-            L"ERROR: Unsupported file type!",
+-            L"Only supports DER-encoded X509 certificate, AUTH_2 format data & executable EFI image",
+-            NULL
++            STRING_TOKEN (STR_POPUP_UNSUPPORTED_FILE_TYPE),
++            STRING_TOKEN (STR_POPUP_ONLY_X509_AUTH2_OR_IMAGE)
+             );
+         } else {
+           IfrNvData->ListCount = Private->ListCount;
+@@ -4970,12 +5050,11 @@ SecureBootCallback (
+       case KEY_VALUE_SAVE_AND_EXIT_DBT:
+         Status = EnrollSignatureDatabase (Private, EFI_IMAGE_SECURITY_DATABASE2);
+         if (EFI_ERROR (Status)) {
+-          CreatePopUp (
+-            EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++          SecureBootPopUp (
++            Private,
+             &Key,
+-            L"ERROR: Unsupported file type!",
+-            L"Only supports DER-encoded X509 certificate.",
+-            NULL
++            STRING_TOKEN (STR_POPUP_UNSUPPORTED_FILE_TYPE),
++            STRING_TOKEN (STR_POPUP_ONLY_X509)
+             );
+         }
+ 
+@@ -4987,12 +5066,11 @@ SecureBootCallback (
+         Status = CheckX509Certificate (Private->FileContext, &EnrollKeyErrorCode);
+         if (EFI_ERROR (Status)) {
+           if ((EnrollKeyErrorCode != None_Error) && (EnrollKeyErrorCode < Enroll_Error_Max)) {
+-            CreatePopUp (
+-              EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
++            SecureBootPopUp (
++              Private,
+               &Key,
+               mX509EnrollPromptTitle[EnrollKeyErrorCode],
+-              mX509EnrollPromptString[EnrollKeyErrorCode],
+-              NULL
++              mX509EnrollPromptString[EnrollKeyErrorCode]
+               );
+             break;
+           }
+@@ -5001,19 +5079,28 @@ SecureBootCallback (
+         }
+ 
+         if (EFI_ERROR (Status)) {
++          PromptTitle  = HiiGetString (Private->HiiHandle, STRING_TOKEN (STR_POPUP_ENROLL_FAILED), NULL);
++          PromptFormat = HiiGetString (Private->HiiHandle, STRING_TOKEN (STR_POPUP_ERROR_STATUS), NULL);
+           UnicodeSPrint (
+             PromptString,
+             sizeof (PromptString),
+-            L"Error status: %x.",
++            (PromptFormat != NULL) ? PromptFormat : L"%x",
+             Status
+             );
+           CreatePopUp (
+             EFI_LIGHTGRAY | EFI_BACKGROUND_BLUE,
+             &Key,
+-            L"ERROR: Enrollment failed!",
++            (PromptTitle != NULL) ? PromptTitle : L"",
+             PromptString,
+             NULL
+             );
++          if (PromptTitle != NULL) {
++            FreePool (PromptTitle);
++          }
++
++          if (PromptFormat != NULL) {
++            FreePool (PromptFormat);
++          }
+         } else {
+           SecureBootExtractConfigFromVariable (Private, IfrNvData);
+         }
+diff --git a/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigStrings.uni b/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigStrings.uni
+index f070210d9e..98d53b687a 100644
+--- a/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigStrings.uni
++++ b/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigStrings.uni
+@@ -140,3 +140,24 @@
+ #string STR_SIGNATURE_DATA_HELP_FORMAT_TIME       #language en-US "Revocation Time:\n%s"
+ 
+ #string STR_SIGNATURE_DELETE_ALL_CONFIRM          #language en-US "Press 'Y' to delete all signature List."
++
++#string STR_SECURE_BOOT_STATE_ENABLED       #language en-US  "Enabled"
++#string STR_SECURE_BOOT_STATE_DISABLED      #language en-US  "Disabled"
++#string STR_POPUP_PP_DISABLE_SECURE_BOOT    #language en-US  "Only Physical Presence User could disable secure boot!"
++#string STR_POPUP_RESET_TO_TAKE_EFFECT      #language en-US  "Configuration changed, please reset the platform to take effect!"
++#string STR_POPUP_DELETE_PK_CONFIRM         #language en-US  "Are you sure you want to delete PK? Secure boot will be disabled!"
++#string STR_POPUP_DELETE_PK_OPTIONS         #language en-US  "Press 'Y' to delete PK and exit, 'N' to discard change and return"
++#string STR_POPUP_PP_DELETE_PK              #language en-US  "Only Physical Presence User could delete PK in custom mode!"
++#string STR_POPUP_DELETE_SIGNATURE_LIST     #language en-US  "Press 'Y' to delete signature list."
++#string STR_POPUP_DELETE_SIGNATURE_DATA     #language en-US  "Press 'Y' to delete signature data."
++#string STR_POPUP_OTHER_KEY_TO_CANCEL       #language en-US  "Press other key to cancel and exit."
++#string STR_POPUP_UNSUPPORTED_FILE_TYPE     #language en-US  "ERROR: Unsupported file type!"
++#string STR_POPUP_UNSUPPORTED_CERTIFICATE   #language en-US  "ERROR: Unsupported certificate!"
++#string STR_POPUP_ONLY_X509                 #language en-US  "Only supports DER-encoded X509 certificate"
++#string STR_POPUP_ONLY_X509_OR_IMAGE        #language en-US  "Only supports DER-encoded X509 certificate and executable EFI image"
++#string STR_POPUP_ONLY_X509_AUTH2_OR_IMAGE  #language en-US  "Only supports DER-encoded X509 certificate, AUTH_2 format data & executable EFI image"
++#string STR_POPUP_ALREADY_IN_DBX            #language en-US  "Enrollment failed! Same certificate had already been in the dbx!"
++#string STR_POPUP_ONLY_DER_FILE             #language en-US  "Only DER encoded certificate file (*.cer/der/crt) is supported."
++#string STR_POPUP_KEY_TOO_SHORT             #language en-US  "Public key length should be equal to or greater than 2048 bits."
++#string STR_POPUP_ENROLL_FAILED             #language en-US  "ERROR: Enrollment failed!"
++#string STR_POPUP_ERROR_STATUS              #language en-US  "Error status: %x."
+-- 
+2.43.0
+

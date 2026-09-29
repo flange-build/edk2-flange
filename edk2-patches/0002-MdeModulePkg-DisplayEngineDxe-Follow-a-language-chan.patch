@@ -1,0 +1,322 @@
+From 149cc513fa5246cc8e715877d62cfa42fcac55a4 Mon Sep 17 00:00:00 2001
+From: Eric Wu <eric3u@outlook.com>
+Date: Tue, 29 Sep 2026 23:13:20 +0800
+Subject: [PATCH 2/9] MdeModulePkg/DisplayEngineDxe: Follow a language change
+ without a reboot
+
+The display engine and CustomizedDisplayLib look their strings up once,
+when they load, and keep them: the key help, the pop-ups, the status bar
+and the help of the F9/F10 hot keys, which the engine registers with the
+browser. A language picked in the front page therefore reaches only the
+forms themselves, while everything around them stays in the language the
+system booted in until the next reboot.
+
+Take the strings again when PlatformLang differs from the one they were
+taken in, checked each time a form is displayed. The hot keys are
+registered again as well; the browser keeps its own copy of their help
+and refuses a key it already has, so the old registration is dropped
+first. The browser copies the hot keys into each form before showing it,
+so their help follows from the next form on; the language is picked on
+the front page, which has no hot keys, so this is not noticeable.
+
+Signed-off-by: Eric Wu <eric3u@outlook.com>
+---
+ .../CustomizedDisplayLib.c                    |   2 +
+ .../CustomizedDisplayLib.inf                  |   1 +
+ .../CustomizedDisplayLibInternal.c            |  33 +++++
+ .../CustomizedDisplayLibInternal.h            |  10 ++
+ .../DisplayEngineDxe/DisplayEngineDxe.inf     |   4 +
+ .../Universal/DisplayEngineDxe/FormDisplay.c  | 115 +++++++++++++-----
+ .../Universal/DisplayEngineDxe/FormDisplay.h  |   3 +
+ 7 files changed, 139 insertions(+), 29 deletions(-)
+
+diff --git a/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.c b/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.c
+index 444c70af18..65a192b755 100644
+--- a/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.c
++++ b/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.c
+@@ -69,6 +69,8 @@ DisplayPageFrame (
+     return Status;
+   }
+ 
++  RefreshLibStrings ();
++
+   gClassOfVfr = FORMSET_CLASS_PLATFORM_SETUP;
+ 
+   ProcessExternedOpcode (FormData);
+diff --git a/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf b/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf
+index 45fbdaf864..c67eeed27b 100644
+--- a/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf
++++ b/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf
+@@ -49,6 +49,7 @@
+ 
+ [Guids]
+   gEfiIfrTianoGuid  ## SOMETIMES_CONSUMES   ## UNDEFINED
++  gEfiGlobalVariableGuid  ## SOMETIMES_CONSUMES   ## Variable:L"PlatformLang"
+ 
+ [Protocols]
+ 
+diff --git a/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLibInternal.c b/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLibInternal.c
+index 21e7e87c94..f0ca05d810 100644
+--- a/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLibInternal.c
++++ b/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLibInternal.c
+@@ -780,6 +780,39 @@ FreeLibStrings (
+   FreePool (mSpaceBuffer);
+ }
+ 
++//
++// The PlatformLang the library strings were last taken in.
++//
++STATIC CHAR8  mLibStringsLanguage[64];
++
++/**
++  Take the library strings again if PlatformLang changed since they were taken.
++
++  They are looked up once and kept, so without this a language picked in the
++  front page would only reach the key help after a reboot.
++
++**/
++VOID
++RefreshLibStrings (
++  VOID
++  )
++{
++  CHAR8       Language[64];
++  UINTN       Size;
++  EFI_STATUS  Status;
++
++  ZeroMem (Language, sizeof (Language));
++  Size   = sizeof (Language) - 1;
++  Status = gRT->GetVariable (L"PlatformLang", &gEfiGlobalVariableGuid, NULL, &Size, Language);
++  if (EFI_ERROR (Status) || (AsciiStrCmp (Language, mLibStringsLanguage) == 0)) {
++    return;
++  }
++
++  AsciiStrCpyS (mLibStringsLanguage, sizeof (mLibStringsLanguage), Language);
++  FreeLibStrings ();
++  InitializeLibStrings ();
++}
++
+ /**
+   Wait for a key to be pressed by user.
+ 
+diff --git a/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLibInternal.h b/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLibInternal.h
+index 2cb4eb33fb..71c31010d9 100644
+--- a/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLibInternal.h
++++ b/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLibInternal.h
+@@ -28,6 +28,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+ #include <Guid/MdeModuleHii.h>
+ #include <Guid/HiiPlatformSetupFormset.h>
+ #include <Guid/HiiFormMapMethodGuid.h>
++#include <Guid/GlobalVariable.h>
+ 
+ #include <Library/PrintLib.h>
+ #include <Library/DebugLib.h>
+@@ -221,6 +222,15 @@ FreeLibStrings (
+   VOID
+   );
+ 
++/**
++  Take the library strings again if PlatformLang changed since they were taken.
++
++**/
++VOID
++RefreshLibStrings (
++  VOID
++  );
++
+ /**
+   Wait for a key to be pressed by user.
+ 
+diff --git a/MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf b/MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+index 07e19140b4..9cbf6e33e9 100644
+--- a/MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
++++ b/MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+@@ -38,6 +38,7 @@
+ [LibraryClasses]
+   UefiDriverEntryPoint
+   UefiBootServicesTableLib
++  UefiRuntimeServicesTableLib
+   DebugLib
+   BaseMemoryLib
+   BaseLib
+@@ -46,6 +47,9 @@
+   MemoryAllocationLib
+   CustomizedDisplayLib
+ 
++[Guids]
++  gEfiGlobalVariableGuid                ## SOMETIMES_CONSUMES  ## Variable:L"PlatformLang"
++
+ [Protocols]
+   gEdkiiFormDisplayEngineProtocolGuid   ## PRODUCES
+   gEdkiiFormBrowserEx2ProtocolGuid      ## CONSUMES
+diff --git a/MdeModulePkg/Universal/DisplayEngineDxe/FormDisplay.c b/MdeModulePkg/Universal/DisplayEngineDxe/FormDisplay.c
+index 0d0774af6c..15aac5fec4 100644
+--- a/MdeModulePkg/Universal/DisplayEngineDxe/FormDisplay.c
++++ b/MdeModulePkg/Universal/DisplayEngineDxe/FormDisplay.c
+@@ -329,6 +329,88 @@ FreeDisplayStrings (
+   FreePool (gPasswordUnsupported);
+ }
+ 
++/**
++  Register the default hot keys F9 and F10 with the browser, with their help
++  in the current language.
++
++**/
++STATIC
++VOID
++RegisterDefaultHotKeys (
++  VOID
++  )
++{
++  EFI_STATUS                              Status;
++  EFI_INPUT_KEY                           HotKey;
++  EFI_STRING                              NewString;
++  EDKII_FORM_BROWSER_EXTENSION2_PROTOCOL  *FormBrowserEx2;
++
++  Status = gBS->LocateProtocol (&gEdkiiFormBrowserEx2ProtocolGuid, NULL, (VOID **)&FormBrowserEx2);
++  if (EFI_ERROR (Status)) {
++    return;
++  }
++
++  //
++  // The browser keeps a copy of the help and will not take a key twice, so
++  // drop what an earlier call registered before registering it again.
++  //
++  HotKey.UnicodeChar = CHAR_NULL;
++  HotKey.ScanCode    = SCAN_F10;
++  FormBrowserEx2->RegisterHotKey (&HotKey, BROWSER_ACTION_UNREGISTER, 0, NULL);
++  NewString = HiiGetString (gHiiHandle, STRING_TOKEN (FUNCTION_TEN_STRING), NULL);
++  ASSERT (NewString != NULL);
++  if (NewString != NULL) {
++    FormBrowserEx2->RegisterHotKey (&HotKey, BROWSER_ACTION_SUBMIT, 0, NewString);
++    FreePool (NewString);
++  }
++
++  HotKey.ScanCode = SCAN_F9;
++  FormBrowserEx2->RegisterHotKey (&HotKey, BROWSER_ACTION_UNREGISTER, 0, NULL);
++  NewString = HiiGetString (gHiiHandle, STRING_TOKEN (FUNCTION_NINE_STRING), NULL);
++  ASSERT (NewString != NULL);
++  if (NewString != NULL) {
++    FormBrowserEx2->RegisterHotKey (&HotKey, BROWSER_ACTION_DEFAULT, EFI_HII_DEFAULT_CLASS_STANDARD, NewString);
++    FreePool (NewString);
++  }
++}
++
++//
++// The PlatformLang the display strings were last taken in.
++//
++STATIC CHAR8  mDisplayStringsLanguage[64];
++
++/**
++  Take the display strings again if PlatformLang changed since they were taken.
++
++  They are looked up once and kept, so without this a language picked in the
++  front page would only reach the pop-ups and the F9/F10 help after a reboot.
++  The browser copies the hot key help into each form before showing it, so
++  the new help shows from the next form on.
++
++**/
++STATIC
++VOID
++RefreshDisplayStrings (
++  VOID
++  )
++{
++  CHAR8       Language[64];
++  UINTN       Size;
++  EFI_STATUS  Status;
++
++  ZeroMem (Language, sizeof (Language));
++  Size   = sizeof (Language) - 1;
++  Status = gRT->GetVariable (L"PlatformLang", &gEfiGlobalVariableGuid, NULL, &Size, Language);
++  if (EFI_ERROR (Status) || (AsciiStrCmp (Language, mDisplayStringsLanguage) == 0)) {
++    return;
++  }
++
++  AsciiStrCpyS (mDisplayStringsLanguage, sizeof (mDisplayStringsLanguage), Language);
++  FreeDisplayStrings ();
++  InitializeDisplayStrings ();
++  RegisterDefaultHotKeys ();
++}
++
+ /**
+   Get prompt string id from the opcode data buffer.
+ 
+@@ -4160,6 +4242,8 @@ FormDisplay (
+   gUserInput = UserInputData;
+   gFormData  = FormData;
+ 
++  RefreshDisplayStrings ();
++
+   //
+   // Process the status info first.
+   //
+@@ -4275,10 +4359,7 @@ InitializeDisplayEngine (
+   IN EFI_SYSTEM_TABLE  *SystemTable
+   )
+ {
+-  EFI_STATUS                              Status;
+-  EFI_INPUT_KEY                           HotKey;
+-  EFI_STRING                              NewString;
+-  EDKII_FORM_BROWSER_EXTENSION2_PROTOCOL  *FormBrowserEx2;
++  EFI_STATUS  Status;
+ 
+   //
+   // Publish our HII data
+@@ -4318,31 +4399,7 @@ InitializeDisplayEngine (
+   ZeroMem (&gHighligthMenuInfo, sizeof (gHighligthMenuInfo));
+   ZeroMem (&gOldFormEntry, sizeof (gOldFormEntry));
+ 
+-  //
+-  // Use BrowserEx2 protocol to register HotKey.
+-  //
+-  Status = gBS->LocateProtocol (&gEdkiiFormBrowserEx2ProtocolGuid, NULL, (VOID **)&FormBrowserEx2);
+-  if (!EFI_ERROR (Status)) {
+-    //
+-    // Register the default HotKey F9 and F10 again.
+-    //
+-    HotKey.UnicodeChar = CHAR_NULL;
+-    HotKey.ScanCode    = SCAN_F10;
+-    NewString          = HiiGetString (gHiiHandle, STRING_TOKEN (FUNCTION_TEN_STRING), NULL);
+-    ASSERT (NewString != NULL);
+-    if (NewString != NULL) {
+-      FormBrowserEx2->RegisterHotKey (&HotKey, BROWSER_ACTION_SUBMIT, 0, NewString);
+-      FreePool (NewString);
+-    }
+-
+-    HotKey.ScanCode = SCAN_F9;
+-    NewString       = HiiGetString (gHiiHandle, STRING_TOKEN (FUNCTION_NINE_STRING), NULL);
+-    ASSERT (NewString != NULL);
+-    if (NewString != NULL) {
+-      FormBrowserEx2->RegisterHotKey (&HotKey, BROWSER_ACTION_DEFAULT, EFI_HII_DEFAULT_CLASS_STANDARD, NewString);
+-      FreePool (NewString);
+-    }
+-  }
++  RegisterDefaultHotKeys ();
+ 
+   return EFI_SUCCESS;
+ }
+diff --git a/MdeModulePkg/Universal/DisplayEngineDxe/FormDisplay.h b/MdeModulePkg/Universal/DisplayEngineDxe/FormDisplay.h
+index 34e6cc53c6..1da3b94dd7 100644
+--- a/MdeModulePkg/Universal/DisplayEngineDxe/FormDisplay.h
++++ b/MdeModulePkg/Universal/DisplayEngineDxe/FormDisplay.h
+@@ -9,6 +9,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+ #pragma once
+ 
+ #include <Library/UefiBootServicesTableLib.h>
++#include <Library/UefiRuntimeServicesTableLib.h>
+ #include <Library/DebugLib.h>
+ #include <Library/BaseMemoryLib.h>
+ #include <Library/BaseLib.h>
+@@ -17,6 +18,8 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+ #include <Library/PrintLib.h>
+ #include <Library/CustomizedDisplayLib.h>
+ 
++#include <Guid/GlobalVariable.h>
++
+ #include <Protocol/FormBrowserEx2.h>
+ #include <Protocol/SimpleTextIn.h>
+ #include <Protocol/DisplayProtocol.h>
+-- 
+2.43.0
+

@@ -1,0 +1,133 @@
+From 1cc049dbe49005bd542717e61a584468d3f63d58 Mon Sep 17 00:00:00 2001
+From: Eric Wu <eric3u@outlook.com>
+Date: Tue, 29 Sep 2026 23:13:20 +0800
+Subject: [PATCH 4/9] MdeModulePkg: Take the reset reminder from HII
+
+UiApp, BootManagerUiLib and BootMaintenanceManagerUiLib each tell the
+user a reset is needed with a pop-up whose text is a literal in the
+code, so it stays in English whatever the language. Move the two lines
+into the string package of each and look them up.
+
+In UiApp the reminder came after FreeFrontPage(), which removes the
+package the strings are now in. Remind before freeing instead; when a
+reset is needed the reminder resets the system and nothing is left to
+free anyway.
+
+Signed-off-by: Eric Wu <eric3u@outlook.com>
+---
+ MdeModulePkg/Application/UiApp/FrontPage.c          | 13 ++++++-------
+ MdeModulePkg/Application/UiApp/FrontPageStrings.uni |  2 ++
+ .../BootMaintenanceManagerStrings.uni               |  2 ++
+ .../BootMaintenanceManagerUiLib/BootOption.c        |  6 ++----
+ MdeModulePkg/Library/BootManagerUiLib/BootManager.c |  6 ++----
+ .../Library/BootManagerUiLib/BootManagerStrings.uni |  3 ++-
+ 6 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/MdeModulePkg/Application/UiApp/FrontPage.c b/MdeModulePkg/Application/UiApp/FrontPage.c
+index 84fba400a2..f17cad24f1 100644
+--- a/MdeModulePkg/Application/UiApp/FrontPage.c
++++ b/MdeModulePkg/Application/UiApp/FrontPage.c
+@@ -1041,12 +1041,13 @@ UiEntry (
+ 
+   CallFrontPage ();
+ 
+-  FreeFrontPage ();
+-
+   //
+-  // Will leave browser, check any reset required change is applied? if yes, reset system
++  // Will leave browser, check any reset required change is applied? if yes, reset system.
++  // The reminder's strings come from the front page's package list, so ask before it is freed.
+   //
+   SetupResetReminder ();
++
++  FreeFrontPage ();
+ }
+ 
+ //
+@@ -1102,12 +1103,10 @@ SetupResetReminder (
+   // check any reset required change is applied? if yes, reset system
+   //
+   if (IsResetRequired ()) {
+-    StringBuffer1 = AllocateZeroPool (MAX_STRING_LEN * sizeof (CHAR16));
++    StringBuffer1 = HiiGetString (gFrontPagePrivate.HiiHandle, STRING_TOKEN (STR_RESET_REQUIRED), NULL);
+     ASSERT (StringBuffer1 != NULL);
+-    StringBuffer2 = AllocateZeroPool (MAX_STRING_LEN * sizeof (CHAR16));
++    StringBuffer2 = HiiGetString (gFrontPagePrivate.HiiHandle, STRING_TOKEN (STR_PRESS_ENTER_TO_RESET), NULL);
+     ASSERT (StringBuffer2 != NULL);
+-    StrCpyS (StringBuffer1, MAX_STRING_LEN, L"Configuration changed. Reset to apply it Now.");
+-    StrCpyS (StringBuffer2, MAX_STRING_LEN, L"Press ENTER to reset");
+     //
+     // Popup a menu to notice user
+     //
+diff --git a/MdeModulePkg/Application/UiApp/FrontPageStrings.uni b/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
+index bd6e377cc1..f0b6e96e84 100644
+--- a/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
++++ b/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
+@@ -66,3 +66,5 @@
+                                          #language fr-FR  "WARNING: Test key detected."
+ #string STR_NULL_STRING                #language en-US  " "
+                                        #language fr-FR  " "
++#string STR_RESET_REQUIRED       #language en-US  "Configuration changed. Reset to apply it Now."
++#string STR_PRESS_ENTER_TO_RESET #language en-US  "Press ENTER to reset"
+diff --git a/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootMaintenanceManagerStrings.uni b/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootMaintenanceManagerStrings.uni
+index 3d47473e6c..ccb7c5841d 100644
+--- a/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootMaintenanceManagerStrings.uni
++++ b/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootMaintenanceManagerStrings.uni
+@@ -282,3 +282,5 @@
+ //
+ // BugBug : need someone to translate these strings to french
+ //
++#string STR_RESET_REQUIRED             #language en-US  "Configuration changed. Reset to apply it Now."
++#string STR_PRESS_ENTER_TO_RESET       #language en-US  "Press ENTER to reset"
+diff --git a/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootOption.c b/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootOption.c
+index aea573b979..c1c581595f 100644
+--- a/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootOption.c
++++ b/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootOption.c
+@@ -42,12 +42,10 @@ BmmSetupResetReminder (
+   // check any reset required change is applied? if yes, reset system
+   //
+   if (!EFI_ERROR (Status) && FormBrowserEx2->IsResetRequired ()) {
+-    StringBuffer1 = AllocateZeroPool (MAX_CHAR * sizeof (CHAR16));
++    StringBuffer1 = HiiGetString (mBmmCallbackInfo->BmmHiiHandle, STRING_TOKEN (STR_RESET_REQUIRED), NULL);
+     ASSERT (StringBuffer1 != NULL);
+-    StringBuffer2 = AllocateZeroPool (MAX_CHAR * sizeof (CHAR16));
++    StringBuffer2 = HiiGetString (mBmmCallbackInfo->BmmHiiHandle, STRING_TOKEN (STR_PRESS_ENTER_TO_RESET), NULL);
+     ASSERT (StringBuffer2 != NULL);
+-    StrCpyS (StringBuffer1, MAX_CHAR, L"Configuration changed. Reset to apply it Now.");
+-    StrCpyS (StringBuffer2, MAX_CHAR, L"Press ENTER to reset");
+     //
+     // Popup a menu to notice user
+     //
+diff --git a/MdeModulePkg/Library/BootManagerUiLib/BootManager.c b/MdeModulePkg/Library/BootManagerUiLib/BootManager.c
+index a42f44e4a9..89703b20a8 100644
+--- a/MdeModulePkg/Library/BootManagerUiLib/BootManager.c
++++ b/MdeModulePkg/Library/BootManagerUiLib/BootManager.c
+@@ -319,12 +319,10 @@ BmSetupResetReminder (
+   // check any reset required change is applied? if yes, reset system
+   //
+   if (!EFI_ERROR (Status) && FormBrowserEx2->IsResetRequired ()) {
+-    StringBuffer1 = AllocateZeroPool (MAX_STRING_LEN * sizeof (CHAR16));
++    StringBuffer1 = HiiGetString (gBootManagerPrivate.HiiHandle, STRING_TOKEN (STR_RESET_REQUIRED), NULL);
+     ASSERT (StringBuffer1 != NULL);
+-    StringBuffer2 = AllocateZeroPool (MAX_STRING_LEN * sizeof (CHAR16));
++    StringBuffer2 = HiiGetString (gBootManagerPrivate.HiiHandle, STRING_TOKEN (STR_PRESS_ENTER_TO_RESET), NULL);
+     ASSERT (StringBuffer2 != NULL);
+-    StrCpyS (StringBuffer1, MAX_STRING_LEN, L"Configuration changed. Reset to apply it Now.");
+-    StrCpyS (StringBuffer2, MAX_STRING_LEN, L"Press ENTER to reset");
+     //
+     // Popup a menu to notice user
+     //
+diff --git a/MdeModulePkg/Library/BootManagerUiLib/BootManagerStrings.uni b/MdeModulePkg/Library/BootManagerUiLib/BootManagerStrings.uni
+index 2fcb9a29c5..0651c32ec8 100644
+--- a/MdeModulePkg/Library/BootManagerUiLib/BootManagerStrings.uni
++++ b/MdeModulePkg/Library/BootManagerUiLib/BootManagerStrings.uni
+@@ -33,4 +33,5 @@
+                                        #language fr-FR  "Appuie n'importe quelle pour continuer..."
+ #string STR_LAST_STRING                #language en-US  ""
+                                        #language fr-FR  ""
+-
++#string STR_RESET_REQUIRED       #language en-US  "Configuration changed. Reset to apply it Now."
++#string STR_PRESS_ENTER_TO_RESET #language en-US  "Press ENTER to reset"
+-- 
+2.43.0
+
