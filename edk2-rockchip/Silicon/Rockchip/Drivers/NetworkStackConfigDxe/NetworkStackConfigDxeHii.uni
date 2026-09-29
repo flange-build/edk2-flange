@@ -7,19 +7,33 @@
 **/
 
 #langdef en-US  "English"
+#langdef zh-Hans "\wide简体中文\narrow"
 
 #string STR_NULL                                           #language en-US ""
+                                                           #language zh-Hans  ""
 
 #string STR_FORM_SET_TITLE                                 #language en-US "Network Stack Configuration"
+                                                           #language zh-Hans "\wide网络协议栈配置\narrow"
 #string STR_FORM_SET_TITLE_HELP                            #language en-US "Configure the network stack support."
+                                                           #language zh-Hans "\wide配置网络协议栈支持。\narrow"
 
 #string STR_NETWORK_STACK_STATE_PROMPT                     #language en-US "Network Stack"
+                                                           #language zh-Hans "\wide网络协议栈\narrow"
 #string STR_NETWORK_STACK_STATE_HELP                       #language en-US "Enable or disable the UEFI network stack."
+                                                           #language zh-Hans "\wide启用或禁用\narrow UEFI \wide网络协议栈。\narrow"
 #string STR_NETWORK_STACK_IPV4_STATE_PROMPT                #language en-US " IPv4 Stack"
+                                                           #language zh-Hans " IPv4 \wide协议栈\narrow"
 #string STR_NETWORK_STACK_IPV4_STATE_HELP                  #language en-US "Enable or disable the UEFI IPv4 network stack."
+                                                           #language zh-Hans "\wide启用或禁用\narrow UEFI IPv4 \wide网络协议栈。\narrow"
 #string STR_NETWORK_STACK_IPV6_STATE_PROMPT                #language en-US " IPv6 Stack"
+                                                           #language zh-Hans " IPv6 \wide协议栈\narrow"
 #string STR_NETWORK_STACK_IPV6_STATE_HELP                  #language en-US "Enable or disable the UEFI IPv6 network stack."
+                                                           #language zh-Hans "\wide启用或禁用\narrow UEFI IPv6 \wide网络协议栈。\narrow"
 #string STR_NETWORK_STACK_PXE_BOOT_STATE_PROMPT            #language en-US " PXE Boot"
+                                                           #language zh-Hans " PXE \wide启动\narrow"
 #string STR_NETWORK_STACK_PXE_BOOT_STATE_HELP              #language en-US "Enable or disable the UEFI PXE boot support."
+                                                           #language zh-Hans "\wide启用或禁用\narrow UEFI PXE \wide启动支持。\narrow"
 #string STR_NETWORK_STACK_HTTP_BOOT_STATE_PROMPT           #language en-US " HTTP Boot"
+                                                           #language zh-Hans " HTTP \wide启动\narrow"
 #string STR_NETWORK_STACK_HTTP_BOOT_STATE_HELP             #language en-US "Enable or disable the UEFI HTTP boot support."
+                                                           #language zh-Hans "\wide启用或禁用\narrow UEFI HTTP \wide启动支持。\narrow"

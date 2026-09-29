@@ -76,6 +76,25 @@ function apply_patchset() {
     return 0
 }
 
+#
+# A string that a translated UNI file lacks in one of its languages is left
+# out of that language's package: in that language it shows up as "!", or
+# not at all. Catch it here, typically after an EDK2 update brought in new
+# strings, rather than on screen.
+#
+function _check_translations() {
+    local unis
+
+    unis=$(grep -rl --include='*.uni' 'zh-Hans' \
+        "${ROOTDIR}/edk2" "${ROOTDIR}/edk2-platforms" "${ROOTDIR}/edk2-rockchip")
+    [ -n "${unis}" ] || return 0
+
+    python3 "${ROOTDIR}/edk2-rockchip/Silicon/Rockchip/Drivers/CjkFontDxe/Tools/UniWide.py" \
+        --check --edk2 "${ROOTDIR}/edk2" ${unis} ||
+        _error "The zh-Hans strings above need attention." \
+               "Running UniWide.py on the files without --check fixes the markup and copies missing strings."
+}
+
 function _build_idblock() {
     echo " => Building idblock.bin"
     pushd ${WORKSPACE}
@@ -242,6 +261,7 @@ function _build(){
     #
     apply_patchset "${ROOTDIR}/edk2-patches" "${ROOTDIR}/edk2" || exit 1
     apply_patchset "${ROOTDIR}/devicetree/mainline/patches" "${ROOTDIR}/devicetree/mainline/upstream" || exit 1
+    _check_translations
 
     [ -d "${WORKSPACE}/Conf" ] || mkdir -p "${WORKSPACE}/Conf"
 

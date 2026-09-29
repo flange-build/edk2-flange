@@ -460,8 +460,12 @@ FspiLib|Silicon/Rockchip/Library/FspiLib/FspiLib.inf
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize|0x2000
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxAuthVariableSize|0x2800
 
-  # Default platform supported RFC 4646 languages: (American) English
-  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultPlatformLangCodes|"en-US"
+  # Default platform supported RFC 4646 languages: (American) English and
+  # Simplified Chinese. LangCodes lists the same languages in ISO 639-2 and
+  # in the same order, which the variable driver relies on to keep Lang in
+  # step with PlatformLang.
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultPlatformLangCodes|"en-US;zh-Hans"
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultLangCodes|"engzho"
 
 [PcdsDynamicHii.common.DEFAULT]
   gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|L"Timeout"|gEfiGlobalVariableGuid|0x0|5 # Variable: L"Timeout"
@@ -571,6 +575,7 @@ FspiLib|Silicon/Rockchip/Library/FspiLib/FspiLib.inf
   MdeModulePkg/Universal/Console/ConSplitterDxe/ConSplitterDxe.inf
   MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe.inf
   MdeModulePkg/Universal/Console/TerminalDxe/TerminalDxe.inf
+  Silicon/Rockchip/Drivers/CjkFontDxe/CjkFontDxe.inf
   MdeModulePkg/Universal/SerialDxe/SerialDxe.inf
 
   #

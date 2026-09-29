@@ -146,6 +146,11 @@ The UEFI provides a few configuration options, like CPU frequency, PCIe/SATA sel
 
 Configuration through the user interface is fairly straightforward and help/navigation information is provided around the menus.
 
+## Language
+The menus are available in English and Simplified Chinese (简体中文). The language can be changed from `Select Language` on the front page, and the choice is remembered across reboots.
+
+To see Chinese on the serial console, use a terminal emulator that decodes UTF-8 (for example `picocom`, `minicom -c on`, `screen` or PuTTY with the UTF-8 character set) with a font that has CJK glyphs.
+
 ## Tips
 ### Boot time optimization
 * If there are unused M.2/PCIe slots, you can disable them to skip initialization: `Device Manager`->`Rockchip Platform Configuration`->`PCIe/SATA/USB Combo PIPE PHY` and set the relevant PHYs to `Unconnected`. Do the same for `PCI Express 3.0` by setting `Support State` to `Disabled`.

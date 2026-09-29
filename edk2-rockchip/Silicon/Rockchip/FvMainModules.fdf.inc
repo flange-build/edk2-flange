@@ -68,6 +68,16 @@
   INF MdeModulePkg/Universal/Console/ConSplitterDxe/ConSplitterDxe.inf
   INF MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe.inf
   INF MdeModulePkg/Universal/Console/TerminalDxe/TerminalDxe.inf
+  INF Silicon/Rockchip/Drivers/CjkFontDxe/CjkFontDxe.inf
+
+  #
+  # The OFL wants its notice to travel with every copy of the font, so the
+  # glyphs CjkFontDxe carries come with their license, readable in the image.
+  #
+  FILE FREEFORM = 580524bf-cb28-471c-baa9-816ebde2a9b3 {
+    SECTION UI = "UnifontLicense"
+    SECTION RAW = Silicon/Rockchip/Drivers/CjkFontDxe/Unifont-OFL.txt
+  }
   INF MdeModulePkg/Universal/SerialDxe/SerialDxe.inf
 
   #
