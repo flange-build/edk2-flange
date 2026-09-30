@@ -46,6 +46,7 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RKCP  ", "RK3588  ", 2)
 
     include ("Display.asl")
     include ("Gpu.asl")
+    include ("Vpu.asl")
 
     include ("Usb2Host.asl")
     include ("Usb3Host0.asl")
