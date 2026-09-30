@@ -21,6 +21,8 @@
 #define BOARD_CODEC_GPIO "\\_SB.GPI1"
 #define BOARD_CODEC_GPIO_PIN GPIO_PIN_PD5
 
+#define BOARD_DISPLAY_OUTPUTS "hdmi0", "hdmi1", "dp0"
+
 DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RKCP  ", "RK3588  ", 2)
 {
   Scope (\_SB_)
@@ -41,6 +43,9 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RKCP  ", "RK3588  ", 2)
     // include ("Spi.asl")
 
     include ("I2s.asl")
+
+    include ("Display.asl")
+    include ("Gpu.asl")
 
     include ("Usb2Host.asl")
     include ("Usb3Host0.asl")

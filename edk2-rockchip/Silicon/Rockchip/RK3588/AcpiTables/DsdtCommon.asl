@@ -10,4 +10,5 @@
 
 Scope (\_SB_) {
   Include ("Scmi.asl")
+  Include ("Pmu.asl")
 }
