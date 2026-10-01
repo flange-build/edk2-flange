@@ -221,9 +221,11 @@ READ_LOCK_STATUS   = TRUE
   INF EmbeddedPkg/Drivers/NonCoherentIoMmuDxe/NonCoherentIoMmuDxe.inf
 
   #
-  # USB host: the secondary DWC3 and xHCI controllers on PCIe
+  # USB host: the secondary DWC3 and xHCI controllers on PCIe (Renesas
+  # uPD720201/2 firmware loaded from a partition)
   #
   INF Silicon/Qualcomm/QCS6490/Drivers/Dwc3HostDxe/Dwc3HostDxe.inf
+  INF Silicon/Qualcomm/QCS6490/Drivers/RenesasXhciFwDxe/RenesasXhciFwDxe.inf
   INF MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
   INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
   INF MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf

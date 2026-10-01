@@ -157,3 +157,11 @@
   #
   gQcs6490TokenSpaceGuid.PcdUsbSecondaryHostEnable|FALSE|BOOLEAN|0x00000050
   gQcs6490TokenSpaceGuid.PcdUsbSecondaryPowerGpios|{ UINT16(0xFFFF) }|VOID*|0x00000051
+
+  #
+  # Where RenesasXhciFwDxe reads the firmware of a Renesas uPD720201/2 xHCI
+  # without an EEPROM from: a file (UTF-16 path) on the GPT partition of that
+  # name, the one Linux reads it from too.
+  #
+  gQcs6490TokenSpaceGuid.PcdRenesasXhciFwPartition|L"usb_fw"|VOID*|0x00000060
+  gQcs6490TokenSpaceGuid.PcdRenesasXhciFwPath|L"\\renesas_usb_fw.mem"|VOID*|0x00000061

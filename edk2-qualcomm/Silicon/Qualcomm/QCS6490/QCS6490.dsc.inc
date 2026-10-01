@@ -706,9 +706,11 @@
 
   #
   # USB host: the secondary DWC3 (usb_2) for boards that set
-  # PcdUsbSecondaryHostEnable, and xHCI controllers on PCIe.
+  # PcdUsbSecondaryHostEnable, and xHCI controllers on PCIe, among them a
+  # Renesas uPD720201/2 whose firmware is loaded from a partition.
   #
   Silicon/Qualcomm/QCS6490/Drivers/Dwc3HostDxe/Dwc3HostDxe.inf
+  Silicon/Qualcomm/QCS6490/Drivers/RenesasXhciFwDxe/RenesasXhciFwDxe.inf
   MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
   MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
   MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
