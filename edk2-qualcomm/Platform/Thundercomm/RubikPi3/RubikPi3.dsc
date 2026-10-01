@@ -66,6 +66,14 @@
   gQcs6490TokenSpaceGuid.PcdLt9611PowerGpio|83
   gQcs6490TokenSpaceGuid.PcdLt9611PortB|TRUE
 
+  #
+  # UEFI variables live in logfs on LUN4, the partition the stock Qualcomm
+  # UEFI kept its logs in. Nothing else writes it, flange flashing included,
+  # so the settings survive a reflash of the system.
+  #
+  gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun|4
+  gQcs6490TokenSpaceGuid.PcdNvStorePartitionName|L"logfs"
+
 [PcdsDynamicDefault.common]
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemManufacturer|L"Thundercomm"
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemSerialNumber|L"SN0000"

@@ -22,12 +22,24 @@
   Qcs6490Helper.h
   Qcs6490LibInternal.h
 
+  #
+  # Early SEC code: variable store from UFS, choice of exception level.
+  #
+  EarlyInit.c
+  EarlyNvStore.c
+  EarlySmmu.c
+  EarlyUfs.c
+  EarlyVectors.S
+  Qcs6490Early.h
+  XblConfig.c
+
 [Packages]
   ArmPkg/ArmPkg.dec
   ArmPlatformPkg/ArmPlatformPkg.dec
   EmbeddedPkg/EmbeddedPkg.dec
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
+  QcomPlatformPkg/QcomPlatformPkg.dec
   QualcommMinPlatformPkg/QualcommMinPlatformPkg.dec
   QualcommSiliconPkg/QualcommSiliconPkg.dec
   Silicon/Qualcomm/QCS6490/QCS6490.dec
@@ -35,23 +47,43 @@
 [LibraryClasses]
   ArmLib
   ArmSmcLib
+  BaseLib
   BaseMemoryLib
+  CacheMaintenanceLib
   DebugLib
   HobLib
+  IoLib
   MemoryAllocationLib
   PcdLib
   PrintLib
   QualcommSmemLib
   SerialPortLib
 
-[Pcd]
-  gArmTokenSpaceGuid.PcdSystemMemoryBase
-
 [FixedPcd]
+  gArmPlatformTokenSpaceGuid.PcdCPUCoresStackBase
+  gArmPlatformTokenSpaceGuid.PcdCPUCorePrimaryStackSize
+  gArmPlatformTokenSpaceGuid.PcdSystemMemoryUefiRegionSize
   gArmTokenSpaceGuid.PcdFdBaseAddress
   gArmTokenSpaceGuid.PcdFdSize
+  gArmTokenSpaceGuid.PcdSystemMemoryBase
+  gArmTokenSpaceGuid.PcdSystemMemorySize
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase64
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase64
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase64
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize
+  gQcomPlatformTokenSpaceGuid.PcdQcomUfsHcDxeBaseAddress
   gQcs6490TokenSpaceGuid.PcdExitGunyah
   gQcs6490TokenSpaceGuid.PcdFallbackSystemMemorySize
+  gQcs6490TokenSpaceGuid.PcdNvStorePartitionName
+  gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun
+
+[Guids]
+  gEfiAuthenticatedVariableGuid
+  gEfiSystemNvDataFvGuid
+  gEfiVariableGuid
+  gQcs6490PlatformConfigGuid
 
 [Ppis]
   gArmMpCoreInfoPpiGuid

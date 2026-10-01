@@ -19,15 +19,20 @@
 
 #include <Ppi/ArmMpCoreInfo.h>
 
+#include <Uefi/UefiBaseType.h>
+#include <Guid/Qcs6490PlatformConfig.h>
+#include <Qcs6490NvStore.h>
+
+#include "Qcs6490Early.h"
 #include "Qcs6490Helper.h"
 #include "Qcs6490LibInternal.h"
 
-CONST BOOLEAN  gQcs6490ExitGunyah = FixedPcdGetBool (PcdExitGunyah);
-
 //
-// Written by ArmPlatformPeiBootAction, from the FD XBL loaded into DRAM.
+// Written by Qcs6490EarlyInit() and ArmPlatformPeiBootAction, in the FD XBL
+// loaded into DRAM.
 //
-INT32  gQcs6490ExitGunyahStatus = QCS6490_SMC_NOT_ISSUED;
+BOOLEAN  gQcs6490ExitGunyah       = FixedPcdGetBool (PcdExitGunyah);
+INT32    gQcs6490ExitGunyahStatus = QCS6490_SMC_NOT_ISSUED;
 
 ARM_CORE_INFO  mPlatformCoreInfoTable[] = {
   {
@@ -49,7 +54,7 @@ Qcs6490Print (
   ...
   )
 {
-  CHAR8    Buffer[128];
+  CHAR8    Buffer[256];
   UINTN    Length;
   VA_LIST  Marker;
 
@@ -147,7 +152,24 @@ ArmPlatformInitialize (
   IN  UINTN  MpId
   )
 {
-  INT32  Status;
+  INT32                   Status;
+  QCS6490_NVSTORE_STATUS  *NvStatus;
+
+  //
+  // Complete the status page with what TrustZone said. Entered at EL2, the
+  // early code did not run: the page must not describe an earlier boot.
+  //
+  if (gQcs6490EarlyInitDone) {
+    NvStatus = Qcs6490NvStoreStatusGet ();
+    if (NvStatus != NULL) {
+      NvStatus->ExitGunyahStatus = gQcs6490ExitGunyahStatus;
+    }
+  } else if (Qcs6490NvStoreLayoutValid ()) {
+    Qcs6490NvStoreStatusInit (
+      (ArmReadCurrentEL () == AARCH64_EL2) ? QCS6490_HYPERVISOR_MODE_EL2
+                                           : QCS6490_HYPERVISOR_MODE_EL1
+      );
+  }
 
   //
   // SEC calls this first thing after its banner, so this is where to report
@@ -163,6 +185,9 @@ ArmPlatformInitialize (
     return EFI_SUCCESS;
   }
 
+  //
+  // EL2 was asked for, and TrustZone refused.
+  //
   if (gQcs6490ExitGunyah) {
     Qcs6490Print (
       "QCS6490: TrustZone did not remove Gunyah (%d), running at EL1\n",

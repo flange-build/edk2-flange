@@ -8,6 +8,10 @@
   through the EFI stub takes its RAM from the UEFI memory map alone. They are
   also left out of the UEFI page tables to keep speculative accesses away.
 
+  The UEFI variable store SEC read from UFS (Qcs6490NvStore.h) is different:
+  it stays mapped like the DRAM around it, and is only marked allocated, as
+  runtime services data, for the FVB driver and the OS.
+
   Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
   Copyright (c) 2026, edk2-flange contributors.
 
@@ -25,22 +29,19 @@
 #include <Library/QualcommSmemLib.h>
 
 #include <RamPartition.h>
+#include <Qcs6490NvStore.h>
 
+#include "Qcs6490Early.h"
 #include "Qcs6490LibInternal.h"
 
 #define QCS6490_PERIPHERAL_BASE  0x00000000ULL
 
 #define QCS6490_MAX_DRAM_BANKS  8
 
-typedef struct {
-  UINT64         Base;
-  UINT64         Size;
-  CONST CHAR8    *Name;
-} QCS6490_MEMORY_RANGE;
-
 //
 // Carve-outs owned by the boot firmware, hypervisor, TrustZone and the remote
-// processors. Sorted by address and non-overlapping.
+// processors. Sorted by address and non-overlapping. The early SEC code
+// checks the memory it has UFS write against them too.
 //
 // This is the union of the memory map in the uefiplat.cfg of the stock
 // Qualcomm UEFI (BOOT.MXF.1.0.c1) and the no-map reserved-memory nodes of
@@ -50,7 +51,7 @@ typedef struct {
 // with, so it is kept here as well. The stock UEFI also reserves its splash
 // screen at 0xE1000000; without a display driver there is nothing to keep.
 //
-STATIC CONST QCS6490_MEMORY_RANGE  mCarveouts[] = {
+CONST QCS6490_MEMORY_RANGE  gQcs6490Carveouts[] = {
   //
   // hyp, Axon DMA, xbl, aop, cmd-db, xbl log and devicetree, sec_apps, smem,
   // cpucp, wlan firmware and the CDSP secure heap.
@@ -68,6 +69,8 @@ STATIC CONST QCS6490_MEMORY_RANGE  mCarveouts[] = {
   { 0xD0600000, 0x00100000, "Debug VM"                 },
   { 0xE0000000, 0x00F00000, "DBI dump"                 },
 };
+
+CONST UINTN  gQcs6490CarveoutCount = ARRAY_SIZE (gQcs6490Carveouts);
 
 /**
   Reads the DRAM banks from the RAM partition table in SMEM.
@@ -260,6 +263,100 @@ AddDramRange (
 }
 
 /**
+  Reserves the UEFI variable store SEC read from UFS, with the status page
+  after it, for the FVB driver and the OS runtime.
+
+  The range stays in the mapped, write-back DRAM around it, like the
+  firmware volume; it is only marked allocated, as EfiRuntimeServicesData
+  rounded up to the 64 KiB runtime granularity of AArch64.
+
+  @param[in]  Banks      The DRAM banks.
+  @param[in]  BankCount  The number of banks.
+  @param[in]  FdBase     The start of the firmware volume.
+  @param[in]  FdEnd      Its end.
+**/
+STATIC
+VOID
+ReserveNvStore (
+  IN CONST QCS6490_MEMORY_RANGE  *Banks,
+  IN UINTN                       BankCount,
+  IN UINT64                      FdBase,
+  IN UINT64                      FdEnd
+  )
+{
+  UINT64       Base;
+  UINT64       End;
+  UINT64       SystemTop;
+  UINT64       PeiBase;
+  UINT64       PeiEnd;
+  UINTN        Index;
+  BOOLEAN      InBank;
+  CONST CHAR8  *Problem;
+
+  Base = QCS6490_NVSTORE_BASE;
+  End  = Base + ALIGN_VALUE (QCS6490_NVSTORE_RESERVED_SIZE, RUNTIME_PAGE_ALLOCATION_GRANULARITY);
+
+  //
+  // Where MemoryInitPeim put the permanent PEI memory.
+  //
+  SystemTop = PcdGet64 (PcdSystemMemoryBase) + PcdGet64 (PcdSystemMemorySize);
+  if ((FdBase >= PcdGet64 (PcdSystemMemoryBase)) && (FdEnd <= SystemTop) &&
+      (SystemTop - FdEnd < FixedPcdGet32 (PcdSystemMemoryUefiRegionSize)))
+  {
+    PeiBase = FdBase - FixedPcdGet32 (PcdSystemMemoryUefiRegionSize);
+  } else {
+    PeiBase = SystemTop - FixedPcdGet32 (PcdSystemMemoryUefiRegionSize);
+  }
+
+  PeiEnd = PeiBase + FixedPcdGet32 (PcdSystemMemoryUefiRegionSize);
+
+  InBank = FALSE;
+  for (Index = 0; Index < BankCount; Index++) {
+    if ((Base >= Banks[Index].Base) && (End <= Banks[Index].Base + Banks[Index].Size)) {
+      InBank = TRUE;
+    }
+  }
+
+  //
+  // Qcs6490NvStoreLayoutValid () covers the carve-outs, the firmware volume
+  // and the SEC stack.
+  //
+  Problem = NULL;
+  if (!Qcs6490NvStoreLayoutValid ()) {
+    Problem = "layout PCDs not valid";
+  } else if ((Base & (RUNTIME_PAGE_ALLOCATION_GRANULARITY - 1)) != 0) {
+    Problem = "not 64 KiB aligned";
+  } else if (!InBank) {
+    Problem = "not in DRAM";
+  } else if ((Base < PeiEnd) && (PeiBase < End)) {
+    Problem = "overlaps the PEI memory";
+  } else if ((Base < FdEnd) && (FdBase < End)) {
+    Problem = "overlaps the firmware volume";
+  } else {
+    for (Index = 0; Index < gQcs6490CarveoutCount; Index++) {
+      if ((Base < gQcs6490Carveouts[Index].Base + gQcs6490Carveouts[Index].Size) &&
+          (gQcs6490Carveouts[Index].Base < End))
+      {
+        Problem = "overlaps a carve-out";
+      }
+    }
+  }
+
+  if (Problem != NULL) {
+    Qcs6490Print (
+      "QCS6490: UEFI variable store 0x%lx-0x%lx not reserved: %a\n",
+      Base,
+      End,
+      Problem
+      );
+    return;
+  }
+
+  BuildMemoryAllocationHob (Base, End - Base, EfiRuntimeServicesData);
+  DEBUG ((DEBUG_INFO, "  0x%010lx-0x%010lx runtime: UEFI variable store\n", Base, End));
+}
+
+/**
   Return the Virtual Memory Map of your platform
 
   This Virtual Memory Map is used by MemoryInitPei Module to initialize the MMU
@@ -311,7 +408,7 @@ ArmPlatformGetVirtualMemoryMap (
   //
   Table = AllocatePool (
             sizeof (ARM_MEMORY_REGION_DESCRIPTOR) *
-            (BankCount * (ARRAY_SIZE (mCarveouts) + 1) + 2)
+            (BankCount * (ARRAY_SIZE (gQcs6490Carveouts) + 1) + 2)
             );
   if (Table == NULL) {
     DEBUG ((DEBUG_ERROR, "%a: Error: Failed AllocatePool()\n", __func__));
@@ -330,9 +427,9 @@ ArmPlatformGetVirtualMemoryMap (
 
     DramSize += Banks[BankIndex].Size;
 
-    for (Index = 0; Index < ARRAY_SIZE (mCarveouts); Index++) {
-      CarveoutBase = MAX (mCarveouts[Index].Base, Cursor);
-      CarveoutEnd  = MIN (mCarveouts[Index].Base + mCarveouts[Index].Size, BankEnd);
+    for (Index = 0; Index < ARRAY_SIZE (gQcs6490Carveouts); Index++) {
+      CarveoutBase = MAX (gQcs6490Carveouts[Index].Base, Cursor);
+      CarveoutEnd  = MIN (gQcs6490Carveouts[Index].Base + gQcs6490Carveouts[Index].Size, BankEnd);
       if (CarveoutBase >= CarveoutEnd) {
         continue;
       }
@@ -344,7 +441,7 @@ ArmPlatformGetVirtualMemoryMap (
       AddDramRange (
         CarveoutBase,
         CarveoutEnd - CarveoutBase,
-        mCarveouts[Index].Name,
+        gQcs6490Carveouts[Index].Name,
         TRUE,
         Table,
         &TableCount
@@ -357,22 +454,27 @@ ArmPlatformGetVirtualMemoryMap (
     }
   }
 
-  Qcs6490Print ("QCS6490: %lu MiB of DRAM\n", DramSize >> 20);
-
   //
   // The firmware volume XBL loaded us into is still executing. It lies in
   // DRAM, clear of every carve-out.
   //
   FdBase = PcdGet64 (PcdFdBaseAddress);
   FdEnd  = FdBase + PcdGet32 (PcdFdSize);
-  for (Index = 0; Index < ARRAY_SIZE (mCarveouts); Index++) {
+  for (Index = 0; Index < ARRAY_SIZE (gQcs6490Carveouts); Index++) {
     ASSERT (
-      FdEnd <= mCarveouts[Index].Base ||
-      FdBase >= mCarveouts[Index].Base + mCarveouts[Index].Size
+      FdEnd <= gQcs6490Carveouts[Index].Base ||
+      FdBase >= gQcs6490Carveouts[Index].Base + gQcs6490Carveouts[Index].Size
       );
   }
 
   BuildMemoryAllocationHob (FdBase, FdEnd - FdBase, EfiBootServicesData);
+
+  //
+  // The variable store SEC loaded, listed with the ranges above.
+  //
+  ReserveNvStore (Banks, BankCount, FdBase, FdEnd);
+
+  Qcs6490Print ("QCS6490: %lu MiB of DRAM\n", DramSize >> 20);
 
   //
   // Peripheral space below DRAM.

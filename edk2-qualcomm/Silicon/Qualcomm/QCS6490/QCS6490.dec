@@ -26,6 +26,12 @@
 [Guids.common]
   gQcs6490TokenSpaceGuid = { 0xb1807de8, 0xa80e, 0x4fcd, { 0xba, 0x44, 0xfd, 0x98, 0xcb, 0x27, 0x9e, 0x4e } }
 
+  #
+  # Vendor GUID of the platform settings variables, and of the Platform
+  # Configuration formset. Include/Guid/Qcs6490PlatformConfig.h
+  #
+  gQcs6490PlatformConfigGuid = { 0xe2442d08, 0x80fa, 0x478e, { 0x8c, 0x24, 0x88, 0x38, 0xb4, 0x5f, 0x8d, 0xa9 } }
+
 [Protocols.common]
   #
   # Installed (with no interface) once SmmuDxe has set up the streams of the
@@ -35,10 +41,11 @@
 
 [PcdsFixedAtBuild.common]
   #
-  # Ask TrustZone to tear down the Gunyah hypervisor and continue at EL2, as
-  # the upstream RB3 Gen 2 port does. Left off, UEFI and the OS run at EL1
-  # as a Gunyah guest, the way the stock Qualcomm firmware boots them with
-  # the default xbl_config.
+  # The exception level when neither the HypervisorMode setting (EL1 or EL2)
+  # nor xbl_config's OsConfigTableSelection decides it (see
+  # Include/Guid/Qcs6490PlatformConfig.h). TRUE asks TrustZone to tear down
+  # the Gunyah hypervisor and continue at EL2, as the upstream RB3 Gen 2 port
+  # does; FALSE keeps UEFI and the OS at EL1 as a Gunyah guest.
   #
   gQcs6490TokenSpaceGuid.PcdExitGunyah|FALSE|BOOLEAN|0x00000001
 
@@ -74,3 +81,13 @@
   gQcs6490TokenSpaceGuid.PcdLt9611ResetGpio|0|UINT16|0x00000015
   gQcs6490TokenSpaceGuid.PcdLt9611PowerGpio|0|UINT16|0x00000016
   gQcs6490TokenSpaceGuid.PcdLt9611PortB|FALSE|BOOLEAN|0x00000017
+
+  #
+  # Where the UEFI variable store lives on UFS: the LUN and the GPT partition
+  # name (a UTF-16 string). SEC reads it into memory at
+  # PcdFlashNvStorageVariableBase64, the FVB driver writes changes back.
+  # An empty name keeps the variables in memory only. See
+  # Include/Qcs6490NvStore.h.
+  #
+  gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun|0|UINT8|0x00000020
+  gQcs6490TokenSpaceGuid.PcdNvStorePartitionName|L""|VOID*|0x00000021

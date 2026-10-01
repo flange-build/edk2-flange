@@ -24,6 +24,8 @@ Working:
 - HDMI (DSI0 -> Lontium LT9611 bridge) at 1920x1080@60 as a GOP: boot logo,
   console and setup UI, with Chinese glyphs. The display is switched off
   again before the OS starts, which drives it itself.
+- UEFI settings (language, boot order, timeout, exception level) kept on UFS,
+  see [Settings](#settings).
 - UFS: every LUN gets a boot option; GRUB on the ESP boots Linux.
 - The QUP serial engine firmware (`qupfw_a`) is loaded for the OS, which
   needs it for I2C, SPI and the Bluetooth UART, and so for HDMI.
@@ -36,10 +38,12 @@ Tested on a RUBIK Pi 3 with the BOOT.MXF.1.0.c1-00430 boot firmware and the
 flange rubikpi3 image (Thundercomm 6.6.90 kernel): the kernel starts at EL1
 under Gunyah, and ADSP, CDSP, video, Wi-Fi and the USB 3 Ethernet come up as
 with the stock firmware.
+The flange mainline image (Linux 7.0.2) runs at EL2 with KVM and HDMI,
+the exception level chosen by `xbl_config_kvm.elf`.
 
 Not supported yet: USB, networking and PCIe in UEFI; display modes other
-than 1080p60; USB-C DisplayPort. UEFI variables are kept in memory and do
-not survive a reboot.
+than 1080p60; USB-C DisplayPort. Variables the OS writes at runtime are not
+kept (see [Settings](#settings)).
 
 ## What differs from the upstream RB3 Gen 2 port
 
@@ -52,8 +56,9 @@ not survive a reboot.
   leaves `PcdFdBaseAddress` unset, so nothing reserves it.
 - **Exception level.** Upstream always asks TrustZone to remove Gunyah and
   continues at EL2. The vendor kernels for these boards expect to run as a
-  Gunyah guest, as the stock firmware boots them, so the switch is a build
-  option here and off by default (see below).
+  Gunyah guest, as the stock firmware boots them, so here it is a setting,
+  which by default follows `xbl_config` as the stock firmware does (see
+  below).
 - **SMMU.** Under Gunyah the apps SMMU faults DMA from any stream the guest
   has not set up, and Gunyah takes the system down for a crash dump on the
   first UFS command. Upstream never meets this, since it always removes
@@ -108,38 +113,61 @@ Build options are passed with `--edk2-flags`, for instance:
 
 | Option | Default | Meaning |
 |---|---|---|
-| `EXIT_GUNYAH` | `FALSE` | Ask TrustZone to tear down Gunyah as soon as UEFI starts, so that UEFI and the OS run at EL2 (the upstream RB3 Gen 2 behaviour). |
-| `DEFAULT_LANG` | `en-US` | Language of the menus: `en-US` or `zh-Hans`. Select Language changes it until the next reset only. |
+| `EXIT_GUNYAH` | `FALSE` | Exception level when neither the `HypervisorMode` variable nor `xbl_config` says which: `TRUE` tears Gunyah down and runs UEFI and the OS at EL2 (the upstream RB3 Gen 2 behaviour). |
+| `DEFAULT_LANG` | `en-US` | Language of the menus until one is picked under Select Language: `en-US` or `zh-Hans`. |
 
 ## Exception level
 
-XBL always starts UEFI at EL1 under the Gunyah hypervisor. UEFI then tells
-TrustZone whether to keep Gunyah or to tear it down and continue at EL2,
-with the same SMC the stock UEFI uses:
+XBL always starts UEFI at EL1 under the Gunyah hypervisor. First thing,
+before there is a console, UEFI decides whether to keep Gunyah or to ask
+TrustZone to tear it down and continue at EL2, with the same SMC the stock
+UEFI uses. It decides from, in this order:
 
-| `EXIT_GUNYAH` | UEFI and OS |
-|---|---|
-| `FALSE` (default) | EL1, Gunyah guest, as the stock firmware boots with the default `xbl_config.elf` |
-| `TRUE` | EL2, as the stock firmware boots with `xbl_config_kvm.elf` |
+1. The `HypervisorMode` variable (vendor GUID `gQcs6490PlatformConfigGuid`,
+   one byte): 1 for EL1 (Gunyah), 2 for EL2 (KVM); 0, or no variable, passes
+   on to the next rule. It takes effect at the next reset.
+2. When it is 0 or missing: the `OsConfigTableSelection` property of
+   `xbl_config`, as the stock UEFI does. `xbl_config.elf` says 1 (Gunyah,
+   EL1) and `xbl_config_kvm.elf`, which flange's mainline product flashes,
+   says 2 (KVM, EL2). XBL leaves the device tree it comes from in memory and
+   its address in the shared IMEM cookie at 0x146AA000 (+0x58, size at +0x60).
+3. When that cannot be read either: the `EXIT_GUNYAH` build option.
 
-Removing Gunyah has to happen first thing, before there is a console.
-Keeping it is confirmed right after the firmware banner. Either way the
-console then says how it went, in `RELEASE` builds too, for instance:
+The console says what was decided and why, in `RELEASE` builds too, for
+instance:
 
 ```
+QCS6490: hypervisor: setting Auto, xbl_config KVM -> EL2 (leaving Gunyah)
 QCS6490: Keeping Gunyah, running at EL1: confirmed by TrustZone
 ```
 
 The stock UEFI stops when TrustZone rejects the call; this firmware warns
 and carries on at EL1.
 
-The stock UEFI takes this choice from the `OsConfigTableSelection`
-property of `xbl_config`, which is what sets `xbl_config.elf` and
-`xbl_config_kvm.elf` apart. This firmware does not read it, so which of the
-two is flashed makes no difference here.
-
 The vendor kernel needs EL1 for its remote processors (ADSP, CDSP, video).
-A mainline kernel at EL2 gets KVM, but see the flange notes on the DSPs.
+A mainline kernel expects EL2 and gets KVM, but see the flange notes on the
+DSPs.
+
+## Settings
+
+UEFI variables, and with them every setting, are kept in the `logfs`
+partition of UFS LUN 4, which only the stock UEFI used (for its logs) and
+which flange never writes, so they survive a reflash of the system:
+
+- SEC, before deciding the exception level, reads the store into memory at
+  0xA0000000 through the UFS controller as XBL left it (it only borrows the
+  controller; DXE initializes it again), after letting UFS DMA through the
+  SMMU for the moment.
+- `NvStoreFvbDxe` gives the standard variable driver that memory, and writes
+  every change back to the partition as soon as UFS is up.
+- The first boot formats the store. If SEC cannot read the partition, that
+  boot keeps its variables in memory only and leaves the partition alone;
+  the console says why.
+- Variables the OS writes at runtime are not written back. The firmware says
+  so in the `EFI_RT_PROPERTIES_TABLE`, so Linux keeps `efivarfs` read-only.
+
+The partition is set per board, with `PcdNvStoreUfsLun` and
+`PcdNvStorePartitionName`.
 
 ## Flashing
 
@@ -172,8 +200,9 @@ them against the package you use.
 
 XBL only loads the UEFI image into 0x9FB00000-0xA0A00000; the stock UEFI
 uses 0x9FB00000-0xA0000000. This image loads at 0x9FC00000: the FD takes
-0x9FC00000-0x9FF00000, the SEC stack starts at 0x9FF00000, and PEI and
-early DXE run from 0xDC000000-0xE0000000.
+0x9FC00000-0x9FF00000, the SEC stack starts at 0x9FF00000, the variable
+store (and a status page SEC fills in) takes 0xA0000000-0xA0091000, and PEI
+and early DXE run from 0xDC000000-0xE0000000.
 
 DRAM is read from the RAM partition table in SMEM (item 402). If it cannot
 be read, the firmware assumes 2 GiB at 0x80000000 and says so on the
@@ -211,11 +240,13 @@ edk2-qualcomm/
     ├── QCS6490.dsc.inc
     ├── QCS6490.fdf
     ├── Library/
-    │   ├── Qcs6490Lib/          ArmPlatformLib: EL switch, memory map
+    │   ├── Qcs6490Lib/          ArmPlatformLib: EL decision and switch, early
+    │   │                        UFS read of the variable store, memory map
     │   ├── MemoryInitPeiLib/    MMU setup
     │   └── OemMiscLib/          SMBIOS
     └── Drivers/
         ├── SmmuDxe/             SMMU set up for UFS and display DMA under Gunyah
+        ├── NvStoreFvbDxe/       Variable store FVB, written back to UFS
         ├── MdssDisplayDxe/      HDMI: DPU, DSI, LT9611, GOP
         ├── QupFwDxe/            QUP serial engine firmware for the OS
         └── SmbiosMemoryDxe/     SMBIOS memory records

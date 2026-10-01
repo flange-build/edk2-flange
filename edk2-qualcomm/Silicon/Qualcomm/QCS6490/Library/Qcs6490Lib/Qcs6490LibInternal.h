@@ -14,17 +14,35 @@
 //
 #define QCS6490_SMC_NOT_ISSUED  MAX_INT32
 
+typedef struct {
+  UINT64         Base;
+  UINT64         Size;
+  CONST CHAR8    *Name;
+} QCS6490_MEMORY_RANGE;
+
 //
-// PcdExitGunyah, for ArmPlatformPeiBootAction, which runs before there is a
-// stack.
+// Carve-outs owned by the boot firmware, hypervisor, TrustZone and the remote
+// processors, sorted by address and non-overlapping. Qcs6490Mem.c.
 //
-extern CONST BOOLEAN  gQcs6490ExitGunyah;
+extern CONST QCS6490_MEMORY_RANGE  gQcs6490Carveouts[];
+extern CONST UINTN                 gQcs6490CarveoutCount;
+
+//
+// Whether ArmPlatformPeiBootAction asked TrustZone to remove Gunyah, as
+// Qcs6490EarlyInit() decided. PcdExitGunyah until then.
+//
+extern BOOLEAN  gQcs6490ExitGunyah;
 
 //
 // What TrustZone returned to ArmPlatformPeiBootAction for the call to
 // remove Gunyah.
 //
 extern INT32  gQcs6490ExitGunyahStatus;
+
+//
+// Set by Qcs6490EarlyInit(): the status page describes this boot.
+//
+extern BOOLEAN  gQcs6490EarlyInitDone;
 
 /**
   Prints a message on the serial console, in RELEASE builds too.

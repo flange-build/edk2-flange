@@ -19,14 +19,14 @@
   DEFINE FIRMWARE_VER            = 0.1
 
   #
-  # Tear down Gunyah and run UEFI and the OS at EL2 (see PcdExitGunyah).
+  # Tear down Gunyah and run UEFI and the OS at EL2 (see PcdExitGunyah) when
+  # neither the Hypervisor setting nor xbl_config says which.
   #
   DEFINE EXIT_GUNYAH             = FALSE
 
   #
-  # Language the menus start in: en-US or zh-Hans. Select Language on the
-  # front page changes it until the next reset only, as UEFI variables are
-  # not stored yet.
+  # Language the menus start in until one is picked under Select Language
+  # on the front page: en-US or zh-Hans.
   #
   DEFINE DEFAULT_LANG            = en-US
 
@@ -360,6 +360,21 @@
   gArmPlatformTokenSpaceGuid.PcdCPUCoresStackBase|0x9ff00000
   gArmPlatformTokenSpaceGuid.PcdCPUCorePrimaryStackSize|0x10000
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize|0x2000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdMaxAuthVariableSize|0x2800
+
+  #
+  # UEFI variable store: variables, FTW working and FTW spare, read from UFS
+  # (PcdNvStoreUfsLun / PcdNvStorePartitionName, set by the board) into this
+  # memory by SEC, written back by NvStoreFvbDxe. See Include/Qcs6490NvStore.h.
+  # It sits in the part of the load window XBL gives UEFI that the FD leaves
+  # free, and PEI keeps it for the runtime.
+  #
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase64|0xA0000000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|0x00040000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase64|0xA0040000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|0x00010000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase64|0xA0050000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|0x00040000
 
   # Size of the region used by UEFI in permanent memory (Reserved 64MB)
   gArmPlatformTokenSpaceGuid.PcdSystemMemoryUefiRegionSize|0x04000000
@@ -528,9 +543,11 @@
   #
   ArmPkg/Drivers/CpuDxe/CpuDxe.inf
   MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf
+  Silicon/Qualcomm/QCS6490/Drivers/NvStoreFvbDxe/NvStoreFvbDxe.inf
   MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf {
-    <PcdsFixedAtBuild>
-    gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable|TRUE
+    <LibraryClasses>
+      # Depex on gEdkiiNvVarStoreFormattedGuid, installed by NvStoreFvbDxe
+      NULL|EmbeddedPkg/Library/NvVarStoreFormattedLib/NvVarStoreFormattedLib.inf
   }
   MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf {
     <LibraryClasses>
