@@ -31,6 +31,9 @@ Working:
   needs it for I2C, SPI and the Bluetooth UART, and so for HDMI.
 - The ADSP and CDSP are started before the OS, for a Linux at EL2 that
   cannot start them itself, see [DSPs at EL2](#dsps-at-el2).
+- USB host on the three Type-A ports, for keyboards and disks, booting
+  from them included: the USB 2.0 port (the SoC's usb_2) and the two USB 3.0
+  ports (a Renesas uPD720201 on PCIe0), see [USB](#usb).
 - The full DRAM (8 GiB), read from the RAM partition table XBL leaves in
   SMEM, with the firmware carve-outs reserved.
 - The mainline RUBIK Pi 3 device tree, handed over to the OS.
@@ -45,8 +48,9 @@ the exception level chosen both by `xbl_config_kvm.elf` and by the
 Hypervisor setting, and attaches to the ADSP and CDSP UEFI started (FastRPC
 devices and the GLINK channels of both come up).
 
-Not supported yet: USB, networking and PCIe in UEFI; display modes other
-than 1080p60; USB-C DisplayPort. Variables the OS writes at runtime are not
+Not supported yet: networking in UEFI (the Ethernet port is an ASIX
+AX88179 on the USB 3.0 controller), the USB-C port in UEFI, PCIe1 (the
+M.2 slot); display modes other than 1080p60; USB-C DisplayPort. Variables the OS writes at runtime are not
 kept (see [Settings](#settings)).
 
 ## What differs from the upstream RB3 Gen 2 port
@@ -66,9 +70,9 @@ kept (see [Settings](#settings)).
 - **SMMU.** Under Gunyah the apps SMMU faults DMA from any stream the guest
   has not set up, and Gunyah takes the system down for a crash dump on the
   first UFS command. Upstream never meets this, since it always removes
-  Gunyah. `SmmuDxe` lets the UFS and display streams bypass stage 1 the way
-  Linux does under the Qualcomm hypervisor, and puts the stream entries back
-  at ExitBootServices.
+  Gunyah. `SmmuDxe` lets the UFS, display and USB streams bypass stage 1
+  the way Linux does under the Qualcomm hypervisor, and puts the stream
+  entries back at ExitBootServices.
 - **SMBIOS** describes the board, the cores with their own frequencies, and
   the memory.
 - **Boot menu.** Every device is connected before booting, so the UFS LUNs
@@ -76,6 +80,9 @@ kept (see [Settings](#settings)).
   Rockchip platforms.
 - **Serial input.** A polling bug made every received character wait
   10 ms, see `edk2-platforms-patches/`.
+- **ext4.** Ext4Dxe rounded the number of block groups down, so it could
+  not mount a file system smaller than one block group (128 MiB with 4 KiB
+  blocks), such as the `usb_fw` partition, see `edk2-platforms-patches/`.
 - The device tree is built from the mainline sources in
   `devicetree/mainline/upstream`, instead of a dummy or user-provided DTB.
 
@@ -201,6 +208,31 @@ DspPreload: after the Gunyah exit: adsp SMP2P 0x6 (running)
 `srtm` are the steps of the switch (call made, back at EL2, translation
 tables in place, MMU on); a boot that stops after one of them tells where.
 
+## USB
+
+| Port | Controller | Driver |
+|---|---|---|
+| USB 2.0 Type-A | usb_2, the SoC's secondary DWC3 (USB 2.0 only) | `Dwc3HostDxe` |
+| 2x USB 3.0 Type-A, Ethernet | Renesas uPD720201 xHCI on PCIe0 | `Qcs6490PciHostBridgeLib`, `RenesasXhciFwDxe` |
+| USB-C | usb_1, the primary DWC3 | none: device mode for EDL and adb |
+
+Nothing before UEFI brings either controller up, so both are set up the
+way Linux 7.0 does it: `Dwc3HostDxe` powers usb_2 and its HS PHY and puts
+the core in host mode, and `Qcs6490PciHostBridgeLib` powers the supplies
+behind PCIe0, the QMP PHY and the root complex, and trains the link
+(Gen2 x1) before PciBusDxe enumerates it. XhciDxe then drives both.
+
+The uPD720201 has no EEPROM: Linux downloads its firmware from
+`renesas_usb_fw.mem` on the `usb_fw` partition (UFS LUN 3, ext4) at every
+boot. `RenesasXhciFwDxe` does the same before XhciDxe starts on it, reading
+the file through Ext4Dxe; the firmware is not part of this repository. The
+chip keeps it while it has power, so Linux may find it running.
+
+All USB DMA stays below 4 GiB, as the UFS's does: under Gunyah, usb_2 DMA
+to a buffer at the top of DRAM timed out. The SMMU lets both controllers'
+streams through while UEFI runs (`SmmuDxe`); XhciDxe stops them at
+ExitBootServices.
+
 ## Settings
 
 UEFI variables, and with them every setting, are kept in the `logfs`
@@ -281,7 +313,7 @@ splash screen of the stock UEFI. It lives in
 edk2-qualcomm/
 ├── build.sh                     Build entry point
 ├── configs/                     One file per board
-├── edk2-platforms-patches/      Fixes to upstream Qualcomm code
+├── edk2-platforms-patches/      Fixes to upstream edk2-platforms code
 ├── misc/qtestsign/              ELF hash segment and test signature (submodule)
 ├── Platform/Thundercomm/RubikPi3/
 │   ├── RubikPi3.dsc             Board PCDs and device tree
@@ -297,10 +329,14 @@ edk2-qualcomm/
     │   │                        UFS read of the variable store, memory map
     │   ├── Qcs6490NvStatusLib/  What SEC decided, for DXE drivers
     │   ├── Qcs6490RpmhLib/      RPMh votes through the apps RSC
+    │   ├── Qcs6490GccLib/       GCC power domains, clocks and resets
+    │   ├── Qcs6490TlmmLib/      TLMM pins
+    │   ├── Qcs6490PciHostBridgeLib/  PCIe0 bring-up and root bridge
+    │   ├── Qcs6490PciSegmentLib/     PCIe0 configuration space
     │   ├── MemoryInitPeiLib/    MMU setup
     │   └── OemMiscLib/          SMBIOS
     └── Drivers/
-        ├── SmmuDxe/             SMMU set up for UFS and display DMA under Gunyah,
+        ├── SmmuDxe/             SMMU set up for UFS, display and USB DMA under Gunyah,
         │                        DSP streams handed over to the OS
         ├── NvStoreFvbDxe/       Variable store FVB, written back to UFS
         ├── PlatformConfigDxe/   Platform Configuration page (Hypervisor, DSP preload)
@@ -308,6 +344,8 @@ edk2-qualcomm/
         ├── QupFwDxe/            QUP serial engine firmware for the OS
         ├── DspPreloadDxe/       ADSP and CDSP started before the OS
         ├── GunyahExitDxe/       Gunyah leaves at ExitBootServices
+        ├── Dwc3HostDxe/         USB 2.0 port (usb_2) in host mode
+        ├── RenesasXhciFwDxe/    uPD720201 firmware from the usb_fw partition
         └── SmbiosMemoryDxe/     SMBIOS memory records
 ```
 
