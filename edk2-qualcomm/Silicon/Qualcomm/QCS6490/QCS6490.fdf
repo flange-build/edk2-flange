@@ -196,6 +196,11 @@ READ_LOCK_STATUS   = TRUE
   INF Silicon/Qualcomm/QCS6490/Drivers/MdssDisplayDxe/MdssDisplayDxe.inf
 
   #
+  # Platform Configuration in the Device Manager (Hypervisor: EL1 or EL2)
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/PlatformConfigDxe/PlatformConfigDxe.inf
+
+  #
   # Splash screen logo, the same on every platform in this repository
   #
   INF edk2-common/Drivers/LogoDxe/LogoDxe.inf

@@ -24,8 +24,8 @@ Working:
 - HDMI (DSI0 -> Lontium LT9611 bridge) at 1920x1080@60 as a GOP: boot logo,
   console and setup UI, with Chinese glyphs. The display is switched off
   again before the OS starts, which drives it itself.
-- UEFI settings (language, boot order, timeout, exception level) kept on UFS,
-  see [Settings](#settings).
+- UEFI settings (language, boot order, timeout, Hypervisor) kept on UFS, see
+  [Settings](#settings).
 - UFS: every LUN gets a boot option; GRUB on the ESP boots Linux.
 - The QUP serial engine firmware (`qupfw_a`) is loaded for the OS, which
   needs it for I2C, SPI and the Bluetooth UART, and so for HDMI.
@@ -39,7 +39,8 @@ flange rubikpi3 image (Thundercomm 6.6.90 kernel): the kernel starts at EL1
 under Gunyah, and ADSP, CDSP, video, Wi-Fi and the USB 3 Ethernet come up as
 with the stock firmware.
 The flange mainline image (Linux 7.0.2) runs at EL2 with KVM and HDMI,
-the exception level chosen by `xbl_config_kvm.elf`.
+the exception level chosen both by `xbl_config_kvm.elf` and by the
+Hypervisor setting.
 
 Not supported yet: USB, networking and PCIe in UEFI; display modes other
 than 1080p60; USB-C DisplayPort. Variables the OS writes at runtime are not
@@ -113,7 +114,7 @@ Build options are passed with `--edk2-flags`, for instance:
 
 | Option | Default | Meaning |
 |---|---|---|
-| `EXIT_GUNYAH` | `FALSE` | Exception level when neither the `HypervisorMode` variable nor `xbl_config` says which: `TRUE` tears Gunyah down and runs UEFI and the OS at EL2 (the upstream RB3 Gen 2 behaviour). |
+| `EXIT_GUNYAH` | `FALSE` | Exception level when neither the Hypervisor setting nor `xbl_config` says which: `TRUE` tears Gunyah down and runs UEFI and the OS at EL2 (the upstream RB3 Gen 2 behaviour). |
 | `DEFAULT_LANG` | `en-US` | Language of the menus until one is picked under Select Language: `en-US` or `zh-Hans`. |
 
 ## Exception level
@@ -123,10 +124,10 @@ before there is a console, UEFI decides whether to keep Gunyah or to ask
 TrustZone to tear it down and continue at EL2, with the same SMC the stock
 UEFI uses. It decides from, in this order:
 
-1. The `HypervisorMode` variable (vendor GUID `gQcs6490PlatformConfigGuid`,
-   one byte): 1 for EL1 (Gunyah), 2 for EL2 (KVM); 0, or no variable, passes
-   on to the next rule. It takes effect at the next reset.
-2. When it is 0 or missing: the `OsConfigTableSelection` property of
+1. The **Hypervisor** setting in Device Manager > Platform Configuration
+   (平台配置 > 虚拟机监控程序): EL1 (Gunyah) or EL2 (KVM). It takes effect
+   at the next reset.
+2. When it is Auto (the default): the `OsConfigTableSelection` property of
    `xbl_config`, as the stock UEFI does. `xbl_config.elf` says 1 (Gunyah,
    EL1) and `xbl_config_kvm.elf`, which flange's mainline product flashes,
    says 2 (KVM, EL2). XBL leaves the device tree it comes from in memory and
@@ -141,8 +142,8 @@ QCS6490: hypervisor: setting Auto, xbl_config KVM -> EL2 (leaving Gunyah)
 QCS6490: Keeping Gunyah, running at EL1: confirmed by TrustZone
 ```
 
-The stock UEFI stops when TrustZone rejects the call; this firmware warns
-and carries on at EL1.
+The Platform Configuration page shows the same. The stock UEFI stops when
+TrustZone rejects the call; this firmware warns and carries on at EL1.
 
 The vendor kernel needs EL1 for its remote processors (ADSP, CDSP, video).
 A mainline kernel expects EL2 and gets KVM, but see the flange notes on the
@@ -162,7 +163,7 @@ which flange never writes, so they survive a reflash of the system:
   every change back to the partition as soon as UFS is up.
 - The first boot formats the store. If SEC cannot read the partition, that
   boot keeps its variables in memory only and leaves the partition alone;
-  the console says why.
+  the console and the Platform Configuration page say why.
 - Variables the OS writes at runtime are not written back. The firmware says
   so in the `EFI_RT_PROPERTIES_TABLE`, so Linux keeps `efivarfs` read-only.
 
@@ -247,6 +248,7 @@ edk2-qualcomm/
     └── Drivers/
         ├── SmmuDxe/             SMMU set up for UFS and display DMA under Gunyah
         ├── NvStoreFvbDxe/       Variable store FVB, written back to UFS
+        ├── PlatformConfigDxe/   Platform Configuration page (Hypervisor)
         ├── MdssDisplayDxe/      HDMI: DPU, DSI, LT9611, GOP
         ├── QupFwDxe/            QUP serial engine firmware for the OS
         └── SmbiosMemoryDxe/     SMBIOS memory records

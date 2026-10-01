@@ -644,3 +644,8 @@
   # HDMI through an LT9611 on DSI0, for boards that set PcdDisplayEnable
   #
   Silicon/Qualcomm/QCS6490/Drivers/MdssDisplayDxe/MdssDisplayDxe.inf
+
+  #
+  # Platform Configuration in the Device Manager (Hypervisor: EL1 or EL2)
+  #
+  Silicon/Qualcomm/QCS6490/Drivers/PlatformConfigDxe/PlatformConfigDxe.inf
