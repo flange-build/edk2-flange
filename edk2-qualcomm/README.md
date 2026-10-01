@@ -22,6 +22,8 @@ Working:
 - Serial console on the debug UART (uart5, 115200 8N1), with the setup UI
   (press ESC or F2 during the countdown), in English or Simplified Chinese.
 - UFS: every LUN gets a boot option; GRUB on the ESP boots Linux.
+- The QUP serial engine firmware (`qupfw_a`) is loaded for the OS, which
+  needs it for I2C, SPI and the Bluetooth UART, and so for HDMI.
 - The full DRAM (8 GiB), read from the RAM partition table XBL leaves in
   SMEM, with the firmware carve-outs reserved.
 - The mainline RUBIK Pi 3 device tree, handed over to the OS.
@@ -209,5 +211,6 @@ edk2-qualcomm/
     │   └── OemMiscLib/          SMBIOS
     └── Drivers/
         ├── SmmuDxe/             SMMU set up for UFS DMA under Gunyah
+        ├── QupFwDxe/            QUP serial engine firmware for the OS
         └── SmbiosMemoryDxe/     SMBIOS memory records
 ```

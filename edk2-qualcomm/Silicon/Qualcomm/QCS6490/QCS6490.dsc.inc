@@ -591,3 +591,8 @@
   ArmPkg/Universal/Smbios/SmbiosMiscDxe/SmbiosMiscDxe.inf
   MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf
   Silicon/Qualcomm/QCS6490/Drivers/SmbiosMemoryDxe/SmbiosMemoryDxe.inf
+
+  #
+  # QUP serial engine firmware for the OS
+  #
+  Silicon/Qualcomm/QCS6490/Drivers/QupFwDxe/QupFwDxe.inf

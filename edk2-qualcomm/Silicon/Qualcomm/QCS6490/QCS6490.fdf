@@ -168,6 +168,10 @@ READ_LOCK_STATUS   = TRUE
   INF Silicon/Qualcomm/QCS6490/Drivers/SmbiosMemoryDxe/SmbiosMemoryDxe.inf
 
   #
+  # QUP serial engine firmware for the OS
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/QupFwDxe/QupFwDxe.inf
+  #
   # TianoCore logo (splash screen)
   #
   INF MdeModulePkg/Logo/LogoDxe.inf

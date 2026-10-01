@@ -38,3 +38,10 @@
   # leaves in SMEM cannot be read.
   #
   gQcs6490TokenSpaceGuid.PcdFallbackSystemMemorySize|0x80000000|UINT64|0x00000002
+
+  #
+  # QUP serial engines to load protocol firmware into, from the qupfw_a
+  # partition: one UINT32 per engine, its base address OR'ed with the protocol
+  # the board's device tree gives it (1 SPI, 2 UART, 3 I2C). Ends at 0.
+  #
+  gQcs6490TokenSpaceGuid.PcdQupFwSerialEngines|{ 0x0 }|VOID*|0x00000003

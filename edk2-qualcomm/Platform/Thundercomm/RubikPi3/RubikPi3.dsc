@@ -44,6 +44,14 @@
   gArmTokenSpaceGuid.PcdBaseBoardProductName|L"RUBIK Pi 3"
   gArmTokenSpaceGuid.PcdBaseBoardVersion|L"1.0"
 
+  #
+  # The QUP serial engines the vendor device tree enables:
+  # i2c0 (ES8316 codec), i2c1 (40-pin header), uart2 (40-pin header),
+  # uart7 (Bluetooth), i2c9 (LT9611 HDMI bridge), spi12 (40-pin header) and
+  # i2c15 (HUSB238 USB PD sink). uart5, the debug console, is XBL's.
+  #
+  gQcs6490TokenSpaceGuid.PcdQupFwSerialEngines|{ UINT32(0x00980003), UINT32(0x00984003), UINT32(0x00988002), UINT32(0x0099C002), UINT32(0x00A84003), UINT32(0x00A90001), UINT32(0x00A9C003), UINT32(0) }
+
 [PcdsDynamicDefault.common]
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemManufacturer|L"Thundercomm"
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemSerialNumber|L"SN0000"

@@ -1,0 +1,44 @@
+#/** @file
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490QupFwDxe
+  FILE_GUID                      = ae5353b3-2e5b-40b4-86d7-091b2a67508e
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = QupFwDxeInitialize
+
+[Sources]
+  QupFwDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  IoLib
+  MemoryAllocationLib
+  PcdLib
+  TimerLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+
+[Protocols]
+  gEfiBlockIoProtocolGuid                       ## CONSUMES
+  gEfiPartitionInfoProtocolGuid                 ## CONSUMES
+
+[FixedPcd]
+  gQcs6490TokenSpaceGuid.PcdQupFwSerialEngines
+
+[Depex]
+  TRUE
