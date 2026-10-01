@@ -189,9 +189,9 @@ READ_LOCK_STATUS   = TRUE
   INF Silicon/Qualcomm/QCS6490/Drivers/MdssDisplayDxe/MdssDisplayDxe.inf
 
   #
-  # TianoCore logo (splash screen)
+  # Splash screen logo, the same on every platform in this repository
   #
-  INF MdeModulePkg/Logo/LogoDxe.inf
+  INF edk2-common/Drivers/LogoDxe/LogoDxe.inf
 
   #
   # Ramdisk support

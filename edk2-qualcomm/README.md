@@ -221,5 +221,6 @@ edk2-qualcomm/
         └── SmbiosMemoryDxe/     SMBIOS memory records
 ```
 
-The Chinese font (`edk2-rockchip/Silicon/Rockchip/Drivers/CjkFontDxe`) is
-shared with the Rockchip platforms.
+The boot logo (`edk2-common/Drivers/LogoDxe`) and the Chinese font
+(`edk2-rockchip/Silicon/Rockchip/Drivers/CjkFontDxe`) are shared with the
+Rockchip platforms.

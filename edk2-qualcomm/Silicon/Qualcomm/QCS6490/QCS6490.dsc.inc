@@ -578,7 +578,7 @@
   MdeModulePkg/Universal/DriverHealthManagerDxe/DriverHealthManagerDxe.inf
   MdeModulePkg/Universal/BdsDxe/BdsDxe.inf
   MdeModulePkg/Universal/BootManagerPolicyDxe/BootManagerPolicyDxe.inf
-  MdeModulePkg/Logo/LogoDxe.inf
+  edk2-common/Drivers/LogoDxe/LogoDxe.inf
   MdeModulePkg/Application/UiApp/UiApp.inf {
     <LibraryClasses>
       NULL|MdeModulePkg/Library/DeviceManagerUiLib/DeviceManagerUiLib.inf
