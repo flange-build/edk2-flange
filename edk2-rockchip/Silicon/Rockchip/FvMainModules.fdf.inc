@@ -78,6 +78,11 @@
     SECTION UI = "UnifontLicense"
     SECTION RAW = Silicon/Rockchip/Drivers/CjkFontDxe/Unifont-OFL.txt
   }
+
+  #
+  # Splash screen logo, the same on every platform in this repository
+  #
+  INF edk2-common/Drivers/LogoDxe/LogoDxe.inf
   INF MdeModulePkg/Universal/SerialDxe/SerialDxe.inf
 
   #

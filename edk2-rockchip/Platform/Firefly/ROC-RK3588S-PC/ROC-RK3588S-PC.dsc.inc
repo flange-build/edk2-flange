@@ -106,6 +106,3 @@
 
   # Device Tree Support
   Platform/Firefly/ROC-RK3588S-PC/DeviceTree/Vendor.inf
-
-  # Splash screen logo
-  $(VENDOR_DIRECTORY)/Drivers/LogoDxe/LogoDxe.inf

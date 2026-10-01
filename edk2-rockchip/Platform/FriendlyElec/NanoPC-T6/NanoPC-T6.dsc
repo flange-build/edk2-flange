@@ -120,6 +120,3 @@
   # Device Tree Support
   $(PLATFORM_DIRECTORY)/DeviceTree/Vendor.inf
   $(PLATFORM_DIRECTORY)/DeviceTree/Mainline.inf
-
-  # Splash screen logo
-  $(VENDOR_DIRECTORY)/Drivers/LogoDxe/LogoDxe.inf
