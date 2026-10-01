@@ -6,7 +6,9 @@
 
   The root file system is the partition named PcdDspFirmwarePartition, read
   through whatever file system driver binds to it (Ext4Dxe for flange's ext4
-  root). Partitions on removable media are tried after the others.
+  root). Partitions on UFS are tried first, then those on other fixed media,
+  then those on removable media: a USB disk can carry a partition of the
+  same name, and some report fixed media.
 
   Copyright (c) 2026, edk2-flange contributors.
 
@@ -15,6 +17,7 @@
 **/
 
 #include <Guid/FileInfo.h>
+#include <Library/DevicePathLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 #include <Library/UefiBootServicesTableLib.h>
@@ -220,6 +223,38 @@ FirmwareConnectAll (
 }
 
 /**
+  Returns whether a handle is on UFS: its device path goes through a UFS
+  device.
+
+  @param[in]  Handle  The handle.
+
+  @return  TRUE if it is.
+**/
+STATIC
+BOOLEAN
+FirmwareIsOnUfs (
+  IN EFI_HANDLE  Handle
+  )
+{
+  EFI_DEVICE_PATH_PROTOCOL  *Node;
+
+  Node = DevicePathFromHandle (Handle);
+  if (Node == NULL) {
+    return FALSE;
+  }
+
+  for ( ; !IsDevicePathEnd (Node); Node = NextDevicePathNode (Node)) {
+    if ((DevicePathType (Node) == MESSAGING_DEVICE_PATH) &&
+        (DevicePathSubType (Node) == MSG_UFS_DP))
+    {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+/**
   Looks for a firmware file on the volumes named PcdDspFirmwarePartition
   that are already there.
 
@@ -246,6 +281,7 @@ FirmwareSearch (
   UINTN                        HandleCount;
   UINTN                        Index;
   UINTN                        Pass;
+  UINTN                        Medium;
   EFI_PARTITION_INFO_PROTOCOL  *PartitionInfo;
   EFI_BLOCK_IO_PROTOCOL        *BlockIo;
   CONST CHAR16                 *PartitionName;
@@ -261,9 +297,9 @@ FirmwareSearch (
   Status = EFI_NOT_FOUND;
 
   //
-  // Fixed media first, then removable media.
+  // UFS first, then other fixed media, then removable media.
   //
-  for (Pass = 0; Pass < 2 && Status == EFI_NOT_FOUND; Pass++) {
+  for (Pass = 0; Pass < 3 && Status == EFI_NOT_FOUND; Pass++) {
     for (Index = 0; Index < HandleCount && Status == EFI_NOT_FOUND; Index++) {
       if (EFI_ERROR (gBS->HandleProtocol (Handles[Index], &gEfiPartitionInfoProtocolGuid, (VOID **)&PartitionInfo)) ||
           (PartitionInfo->Type != PARTITION_TYPE_GPT) ||
@@ -272,9 +308,17 @@ FirmwareSearch (
         continue;
       }
 
-      if (EFI_ERROR (gBS->HandleProtocol (Handles[Index], &gEfiBlockIoProtocolGuid, (VOID **)&BlockIo)) ||
-          (BlockIo->Media->RemovableMedia != (Pass == 1)))
-      {
+      if (EFI_ERROR (gBS->HandleProtocol (Handles[Index], &gEfiBlockIoProtocolGuid, (VOID **)&BlockIo))) {
+        continue;
+      }
+
+      if (FirmwareIsOnUfs (Handles[Index])) {
+        Medium = 0;
+      } else {
+        Medium = BlockIo->Media->RemovableMedia ? 2 : 1;
+      }
+
+      if (Medium != Pass) {
         continue;
       }
 
