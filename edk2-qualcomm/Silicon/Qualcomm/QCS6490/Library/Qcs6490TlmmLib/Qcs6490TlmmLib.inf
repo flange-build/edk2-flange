@@ -1,0 +1,28 @@
+#/** @file
+#
+#  QCS6490 top-level mode multiplexer (TLMM) GPIO helpers.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490TlmmLib
+  FILE_GUID                      = 0b6d2f86-3e1f-4f0a-8c5d-7a9e41c2d3b7
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = Qcs6490TlmmLib
+
+[Sources]
+  Tlmm.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  DebugLib
+  IoLib

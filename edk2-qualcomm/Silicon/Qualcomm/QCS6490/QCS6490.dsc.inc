@@ -118,6 +118,10 @@
   # What SEC found and decided (exception level, variable store)
   Qcs6490NvStatusLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490NvStatusLib/Qcs6490NvStatusLib.inf
 
+  # GCC clocks and TLMM GPIOs (PCIe, USB)
+  Qcs6490GccLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490GccLib/Qcs6490GccLib.inf
+  Qcs6490TlmmLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490TlmmLib/Qcs6490TlmmLib.inf
+
   # Device trees (DSP preload)
   FdtLib|MdePkg/Library/BaseFdtLib/BaseFdtLib.inf
 

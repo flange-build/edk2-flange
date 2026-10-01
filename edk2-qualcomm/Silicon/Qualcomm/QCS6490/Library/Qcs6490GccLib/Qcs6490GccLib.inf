@@ -1,0 +1,31 @@
+#/** @file
+#
+#  QCS6490 global clock controller helpers: GDSCs, branch clocks, root clock
+#  generators and block resets.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490GccLib
+  FILE_GUID                      = 6f3c7a52-6d0e-4a59-9b8b-5e2f2b0d1c41
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = Qcs6490GccLib
+
+[Sources]
+  Gcc.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  IoLib
+  TimerLib

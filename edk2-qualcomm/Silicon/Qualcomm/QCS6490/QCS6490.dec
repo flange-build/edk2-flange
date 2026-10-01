@@ -30,6 +30,12 @@
   ##  @libraryclass  The status page SEC leaves after the variable store.
   Qcs6490NvStatusLib|Include/Library/Qcs6490NvStatusLib.h
 
+  ##  @libraryclass  Power domains, branch clocks, roots and resets of the GCC.
+  Qcs6490GccLib|Include/Library/Qcs6490GccLib.h
+
+  ##  @libraryclass  TLMM pin configuration and GPIO levels.
+  Qcs6490TlmmLib|Include/Library/Qcs6490TlmmLib.h
+
 [Guids.common]
   gQcs6490TokenSpaceGuid = { 0xb1807de8, 0xa80e, 0x4fcd, { 0xba, 0x44, 0xfd, 0x98, 0xcb, 0x27, 0x9e, 0x4e } }
 
