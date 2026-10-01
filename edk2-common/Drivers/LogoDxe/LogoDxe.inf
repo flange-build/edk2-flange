@@ -1,0 +1,49 @@
+## @file
+#  The flange boot logo, shared by every platform in this repository.
+#
+#  Copyright (c) 2016 - 2017, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = FlangeLogoDxe
+  FILE_GUID                      = 1b73efa3-e95e-4088-943d-a9306170ea93
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = InitializeLogo
+
+  #
+  # Put the HII image package into the PE/COFF resource section.
+  #
+  UEFI_HII_RESOURCE_SECTION      = TRUE
+
+[Sources]
+  Logo-1152.bmp
+  Logo-384.bmp
+  Logo-768.bmp
+  Logo.c
+  Logo.idf
+
+[Packages]
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+
+[Protocols]
+  gEdkiiPlatformLogoProtocolGuid                ## PRODUCES
+  gEfiGraphicsOutputProtocolGuid                ## SOMETIMES_CONSUMES
+  gEfiHiiDatabaseProtocolGuid                   ## CONSUMES
+  gEfiHiiImageExProtocolGuid                    ## CONSUMES
+  gEfiHiiPackageListProtocolGuid                ## PRODUCES CONSUMES
+
+[Depex]
+  gEfiHiiDatabaseProtocolGuid AND
+  gEfiHiiImageExProtocolGuid
