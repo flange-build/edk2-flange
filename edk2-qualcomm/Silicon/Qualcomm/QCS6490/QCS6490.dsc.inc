@@ -23,6 +23,13 @@
   #
   DEFINE EXIT_GUNYAH             = FALSE
 
+  #
+  # Language the menus start in: en-US or zh-Hans. Select Language on the
+  # front page changes it until the next reset only, as UEFI variables are
+  # not stored yet.
+  #
+  DEFINE DEFAULT_LANG            = en-US
+
 ################################################################################
 #
 # Library Class section - list of all Library Classes needed by this Platform.
@@ -401,6 +408,12 @@
   # step with PlatformLang.
   gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultPlatformLangCodes|"en-US;zh-Hans"
   gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultLangCodes|"engzho"
+!if "$(DEFAULT_LANG)" == "zh-Hans"
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultPlatformLang|"zh-Hans"
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultLang|"zho"
+!elseif "$(DEFAULT_LANG)" != "en-US"
+  !error "DEFAULT_LANG must be en-US or zh-Hans"
+!endif
 
 [PcdsDynamicHii.common.DEFAULT]
   gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|L"Timeout"|gEfiGlobalVariableGuid|0x0|5 # Variable: L"Timeout"
@@ -534,6 +547,7 @@
   MdeModulePkg/Universal/Console/ConSplitterDxe/ConSplitterDxe.inf
   MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe.inf
   MdeModulePkg/Universal/Console/TerminalDxe/TerminalDxe.inf
+  edk2-rockchip/Silicon/Rockchip/Drivers/CjkFontDxe/CjkFontDxe.inf
   MdeModulePkg/Universal/SerialDxe/SerialDxe.inf
 
   MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf

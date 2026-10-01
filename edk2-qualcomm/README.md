@@ -22,8 +22,8 @@ Working:
 - Serial console on the debug UART (uart5, 115200 8N1), with the setup UI
   (press ESC or F2 during the countdown), in English or Simplified Chinese.
 - HDMI (DSI0 -> Lontium LT9611 bridge) at 1920x1080@60 as a GOP: boot logo,
-  console and setup UI. The display is switched off again before the OS
-  starts, which drives it itself.
+  console and setup UI, with Chinese glyphs. The display is switched off
+  again before the OS starts, which drives it itself.
 - UFS: every LUN gets a boot option; GRUB on the ESP boots Linux.
 - The QUP serial engine firmware (`qupfw_a`) is loaded for the OS, which
   needs it for I2C, SPI and the Bluetooth UART, and so for HDMI.
@@ -109,6 +109,7 @@ Build options are passed with `--edk2-flags`, for instance:
 | Option | Default | Meaning |
 |---|---|---|
 | `EXIT_GUNYAH` | `FALSE` | Ask TrustZone to tear down Gunyah as soon as UEFI starts, so that UEFI and the OS run at EL2 (the upstream RB3 Gen 2 behaviour). |
+| `DEFAULT_LANG` | `en-US` | Language of the menus: `en-US` or `zh-Hans`. Select Language changes it until the next reset only. |
 
 ## Exception level
 
@@ -219,3 +220,6 @@ edk2-qualcomm/
         ├── QupFwDxe/            QUP serial engine firmware for the OS
         └── SmbiosMemoryDxe/     SMBIOS memory records
 ```
+
+The Chinese font (`edk2-rockchip/Silicon/Rockchip/Drivers/CjkFontDxe`) is
+shared with the Rockchip platforms.
