@@ -43,6 +43,12 @@
   #
   gQcs6490SmmuReadyProtocolGuid = { 0xfc576c2b, 0xcb3c, 0x44ec, { 0x82, 0x5a, 0xea, 0xdc, 0x52, 0xdc, 0xcb, 0x69 } }
 
+  #
+  # Installed by SmmuDxe at EL2, to hand streams over to the OS in bypass.
+  # Include/Protocol/Qcs6490Smmu.h
+  #
+  gQcs6490SmmuProtocolGuid = { 0xe7c57892, 0x299f, 0x4197, { 0xa2, 0xb0, 0x7b, 0xee, 0x2c, 0x46, 0xa4, 0x5d } }
+
 [PcdsFixedAtBuild.common]
   #
   # The exception level when neither the HypervisorMode setting (EL1 or EL2)

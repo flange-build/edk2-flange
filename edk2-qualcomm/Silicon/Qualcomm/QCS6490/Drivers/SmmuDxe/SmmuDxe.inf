@@ -29,6 +29,7 @@
   UefiDriverEntryPoint
 
 [Protocols]
+  gQcs6490SmmuProtocolGuid                      ## SOMETIMES_PRODUCES
   gQcs6490SmmuReadyProtocolGuid                 ## PRODUCES
 
 [Depex]

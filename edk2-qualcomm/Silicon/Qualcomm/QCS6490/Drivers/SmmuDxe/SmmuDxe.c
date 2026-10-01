@@ -11,8 +11,11 @@
   goes to a context bank with translation disabled. The hypervisor still
   applies its stage 2.
 
-  After TrustZone has removed Gunyah, the SMMU is left in bypass and there is
-  nothing to do.
+  After TrustZone has removed Gunyah, the SMMU is left in bypass and UEFI's
+  own DMA needs nothing. A remote processor UEFI starts keeps running into
+  the OS, though, and Linux enables the SMMU with unmatched streams faulting.
+  At EL2 this driver therefore offers QCS6490_SMMU_PROTOCOL, which hands such
+  a stream over to the OS in bypass.
 
   The stream-to-context entries are put back at ExitBootServices, so the OS
   finds no stream matched that the boot firmware did not match. The display
@@ -33,6 +36,7 @@
 #include <Library/IoLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
+#include <Protocol/Qcs6490Smmu.h>
 #include <Protocol/Qcs6490SmmuReady.h>
 
 //
@@ -44,16 +48,21 @@
 // Arm SMMUv2 (MMU-500) registers.
 //
 #define SMMU_SCR0             0x000
+#define SMMU_SCR0_CLIENTPD    BIT0
 #define SMMU_SCR0_EXIDENABLE  BIT3
+#define SMMU_SCR0_USFCFG      BIT10
 
 #define SMMU_IDR0          0x020
 #define SMMU_IDR0_SMS      BIT27
+#define SMMU_IDR0_EXIDS    BIT8
 #define SMMU_IDR0_NUMSMRG  0xFF
 
 #define SMMU_IDR1                 0x024
 #define SMMU_IDR1_PAGESIZE        BIT31
 #define SMMU_IDR1_NUMPAGENDXB(x)  (((x) >> 28) & 0x7)
 #define SMMU_IDR1_NUMCB(x)        ((x) & 0xFF)
+
+#define SMMU_SGFSR  0x048
 
 #define SMMU_SMR(n)          (0x800 + 4 * (n))
 #define SMMU_SMR_VALID       BIT31
@@ -100,6 +109,7 @@ STATIC UINTN        mSavedEntryCount;
 STATIC BOOLEAN  mBypassCbUsed;
 STATIC UINTN    mBypassCb;
 
+STATIC UINTN    mNumSmrg;
 STATIC UINTN    mGr1Base;
 STATIC UINTN    mCbBase;
 STATIC UINTN    mPageShift;
@@ -243,6 +253,220 @@ RestoreSmmu (
 }
 
 /**
+  Implements QCS6490_SMMU_PROTOCOL.HandOverBypass(), at EL2.
+
+  @param[in]  This      The protocol.
+  @param[in]  StreamId  The stream ID.
+  @param[in]  Mask      The stream ID bits to ignore.
+  @param[in]  Name      A name for the log.
+
+  @retval EFI_SUCCESS            The stream bypasses the SMMU, now and for the
+                                 OS.
+  @retval EFI_ACCESS_DENIED      Another entry already matches the stream and
+                                 does not bypass.
+  @retval EFI_UNSUPPORTED        The SMMU uses extended stream IDs.
+  @retval EFI_OUT_OF_RESOURCES   No stream match entry is free.
+**/
+STATIC
+EFI_STATUS
+EFIAPI
+HandOverBypass (
+  IN QCS6490_SMMU_PROTOCOL  *This,
+  IN UINT16                 StreamId,
+  IN UINT16                 Mask,
+  IN CONST CHAR8            *Name
+  )
+{
+  UINTN    Index;
+  UINT32   Smr;
+  UINT32   S2cr;
+  UINT32   EntrySmr;
+  UINT32   EntryId;
+  UINT32   EntryMask;
+  BOOLEAN  Covered;
+  BOOLEAN  Conflict;
+
+  //
+  // Linux reads only the valid bit of the stream match register when it
+  // adopts the boot firmware's entries.
+  //
+  if (mExtendedIds) {
+    DEBUG ((DEBUG_ERROR, "%a: extended stream IDs enabled, %a stream 0x%x not handed over\n", __func__, Name, StreamId));
+    return EFI_UNSUPPORTED;
+  }
+
+  Smr  = SMMU_SMR_VALID | ((UINT32)Mask << SMMU_SMR_MASK_SHIFT) | StreamId;
+  S2cr = (SMMU_S2CR_TYPE_BYPASS << SMMU_S2CR_TYPE_SHIFT) | SMMU_S2CR_CBNDX_NONE;
+
+  //
+  // Every entry that matches some of the stream's IDs: two entries matching
+  // one ID is a stream match conflict once Linux turns the SMMU on. A BYPASS
+  // entry that matches all of them does the job already.
+  //
+  Covered  = FALSE;
+  Conflict = FALSE;
+  for (Index = 0; Index < mNumSmrg; Index++) {
+    if (!IsEntryValid (Index)) {
+      continue;
+    }
+
+    EntrySmr  = MmioRead32 (APPS_SMMU_BASE + SMMU_SMR (Index));
+    EntryId   = EntrySmr & SMMU_SMR_ID_MASK;
+    EntryMask = (EntrySmr >> SMMU_SMR_MASK_SHIFT) & SMMU_SMR_ID_MASK;
+    if (((EntryId ^ StreamId) & ~(EntryMask | Mask) & SMMU_SMR_ID_MASK) != 0) {
+      continue;
+    }
+
+    if (((Mask & ~EntryMask) == 0) &&
+        (SMMU_S2CR_TYPE (MmioRead32 (APPS_SMMU_BASE + SMMU_S2CR (Index))) == SMMU_S2CR_TYPE_BYPASS))
+    {
+      DEBUG ((DEBUG_INFO, "%a: %a stream 0x%x already bypasses in entry %u (SMR 0x%x)\n", __func__, Name, StreamId, Index, EntrySmr));
+      Covered = TRUE;
+      continue;
+    }
+
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: %a stream 0x%x mask 0x%x also matched by entry %u (SMR 0x%x, S2CR 0x%x)\n",
+      __func__,
+      Name,
+      StreamId,
+      Mask,
+      Index,
+      EntrySmr,
+      MmioRead32 (APPS_SMMU_BASE + SMMU_S2CR (Index))
+      ));
+    Conflict = TRUE;
+  }
+
+  if (Conflict) {
+    return EFI_ACCESS_DENIED;
+  }
+
+  if (Covered) {
+    return EFI_SUCCESS;
+  }
+
+  //
+  // The lowest free entry, below the one Linux writes to find out whether
+  // BYPASS entries work: the last, or entry 127 when there are more than
+  // 128 (arm-smmu-qcom qcom_smmu_cfg_probe).
+  //
+  for (Index = 0; Index < MIN (mNumSmrg - 1, 127) && IsEntryValid (Index); Index++) {
+  }
+
+  if (Index >= MIN (mNumSmrg - 1, 127)) {
+    DEBUG ((DEBUG_ERROR, "%a: no free stream match group for %a\n", __func__, Name));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  //
+  // The context first, then the match, as Linux does.
+  //
+  MmioWrite32 (APPS_SMMU_BASE + SMMU_S2CR (Index), S2cr);
+  MmioWrite32 (APPS_SMMU_BASE + SMMU_SMR (Index), Smr);
+  ArmDataSynchronizationBarrier ();
+
+  DEBUG ((
+    DEBUG_INFO,
+    "%a: %a stream 0x%x mask 0x%x: entry %u, SMR 0x%x, S2CR 0x%x, kept for the OS\n",
+    __func__,
+    Name,
+    StreamId,
+    Mask,
+    Index,
+    MmioRead32 (APPS_SMMU_BASE + SMMU_SMR (Index)),
+    MmioRead32 (APPS_SMMU_BASE + SMMU_S2CR (Index))
+    ));
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Logs the SMMU as TrustZone left it when it removed Gunyah: the global
+  configuration and the stream match entries in use, which Linux adopts as
+  bypass streams. Reads only.
+
+  @param[in]  Idr0  IDR0.
+  @param[in]  Idr1  IDR1.
+**/
+STATIC
+VOID
+LogEl2State (
+  IN UINT32  Idr0,
+  IN UINT32  Idr1
+  )
+{
+  UINT32  Scr0;
+  UINTN   Index;
+  UINTN   Valid;
+
+  Scr0 = MmioRead32 (APPS_SMMU_BASE + SMMU_SCR0);
+
+  DEBUG ((
+    DEBUG_INFO,
+    "%a: EL2: sCR0 0x%x (CLIENTPD %u, USFCFG %u, EXIDENABLE %u), sGFSR 0x%x, IDR0 0x%x (EXIDS %u), IDR1 0x%x, %u stream match groups\n",
+    __func__,
+    Scr0,
+    (Scr0 & SMMU_SCR0_CLIENTPD) != 0,
+    (Scr0 & SMMU_SCR0_USFCFG) != 0,
+    (Scr0 & SMMU_SCR0_EXIDENABLE) != 0,
+    MmioRead32 (APPS_SMMU_BASE + SMMU_SGFSR),
+    Idr0,
+    (Idr0 & SMMU_IDR0_EXIDS) != 0,
+    Idr1,
+    mNumSmrg
+    ));
+
+  Valid = 0;
+  for (Index = 0; Index < mNumSmrg; Index++) {
+    if (!IsEntryValid (Index)) {
+      continue;
+    }
+
+    Valid++;
+    DEBUG ((
+      DEBUG_INFO,
+      "%a: EL2: entry %u SMR 0x%x S2CR 0x%x\n",
+      __func__,
+      Index,
+      MmioRead32 (APPS_SMMU_BASE + SMMU_SMR (Index)),
+      MmioRead32 (APPS_SMMU_BASE + SMMU_S2CR (Index))
+      ));
+  }
+
+  DEBUG ((DEBUG_INFO, "%a: EL2: %u stream match entries in use\n", __func__, Valid));
+}
+
+/**
+  Reads how many stream match groups and context banks the SMMU has, and
+  where its register pages are. Under Gunyah these come from its emulation.
+
+  @param[out]  Idr0  IDR0.
+  @param[out]  Idr1  IDR1.
+**/
+STATIC
+VOID
+ReadGeometry (
+  OUT UINT32  *Idr0,
+  OUT UINT32  *Idr1
+  )
+{
+  *Idr0 = MmioRead32 (APPS_SMMU_BASE + SMMU_IDR0);
+  *Idr1 = MmioRead32 (APPS_SMMU_BASE + SMMU_IDR1);
+
+  mNumSmrg     = *Idr0 & SMMU_IDR0_NUMSMRG;
+  mPageShift   = ((*Idr1 & SMMU_IDR1_PAGESIZE) != 0) ? 16 : 12;
+  mGr1Base     = APPS_SMMU_BASE + ((UINTN)1 << mPageShift);
+  mCbBase      = APPS_SMMU_BASE + ((UINTN)1 << (SMMU_IDR1_NUMPAGENDXB (*Idr1) + 1 + mPageShift));
+  mExtendedIds = (MmioRead32 (APPS_SMMU_BASE + SMMU_SCR0) & SMMU_SCR0_EXIDENABLE) != 0;
+}
+
+STATIC QCS6490_SMMU_PROTOCOL  mSmmuProtocol = {
+  HandOverBypass
+};
+
+/**
   Tells the drivers that do DMA that their streams are set up.
 
   @retval EFI_SUCCESS  The marker protocol is installed.
@@ -290,21 +514,29 @@ SmmuDxeInitialize (
   UINT32      Smr;
   UINT32      S2cr;
   EFI_STATUS  Status;
+  EFI_HANDLE  Handle;
+
+  ReadGeometry (&Idr0, &Idr1);
+  NumSmrg = mNumSmrg;
+  NumCb   = SMMU_IDR1_NUMCB (Idr1);
 
   if (ArmReadCurrentEL () != AARCH64_EL1) {
-    DEBUG ((DEBUG_INFO, "%a: not a Gunyah guest, SMMU left alone\n", __func__));
+    DEBUG ((DEBUG_INFO, "%a: not a Gunyah guest, UEFI's own streams left alone\n", __func__));
+    LogEl2State (Idr0, Idr1);
+
+    Handle = NULL;
+    Status = gBS->InstallMultipleProtocolInterfaces (
+                    &Handle,
+                    &gQcs6490SmmuProtocolGuid,
+                    &mSmmuProtocol,
+                    NULL
+                    );
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+
     return InstallSmmuReady ();
   }
-
-  Idr0 = MmioRead32 (APPS_SMMU_BASE + SMMU_IDR0);
-  Idr1 = MmioRead32 (APPS_SMMU_BASE + SMMU_IDR1);
-
-  NumSmrg      = Idr0 & SMMU_IDR0_NUMSMRG;
-  NumCb        = SMMU_IDR1_NUMCB (Idr1);
-  mPageShift   = ((Idr1 & SMMU_IDR1_PAGESIZE) != 0) ? 16 : 12;
-  mGr1Base     = APPS_SMMU_BASE + ((UINTN)1 << mPageShift);
-  mCbBase      = APPS_SMMU_BASE + ((UINTN)1 << (SMMU_IDR1_NUMPAGENDXB (Idr1) + 1 + mPageShift));
-  mExtendedIds = (MmioRead32 (APPS_SMMU_BASE + SMMU_SCR0) & SMMU_SCR0_EXIDENABLE) != 0;
 
   DEBUG ((
     DEBUG_INFO,
