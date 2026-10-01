@@ -1,0 +1,40 @@
+#/** @file
+#
+#  Qualcomm QCS6490 (Kodiak) SoC support shared by the boards in edk2-qualcomm.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  DEC_SPECIFICATION              = 0x0001001B
+  PACKAGE_NAME                   = QCS6490
+  PACKAGE_GUID                   = 0aeb376a-9528-4f4b-93cb-ebf4c47937c4
+  PACKAGE_VERSION                = 0.1
+
+[Includes]
+  #
+  # For the device trees built from devicetree-rebasing (resolved through
+  # PACKAGES_PATH, like the Rockchip boards do).
+  #
+  devicetree/mainline/upstream/include
+
+[Guids.common]
+  gQcs6490TokenSpaceGuid = { 0xb1807de8, 0xa80e, 0x4fcd, { 0xba, 0x44, 0xfd, 0x98, 0xcb, 0x27, 0x9e, 0x4e } }
+
+[PcdsFixedAtBuild.common]
+  #
+  # Ask TrustZone to tear down the Gunyah hypervisor and continue at EL2, as
+  # the upstream RB3 Gen 2 port does. Left off, UEFI and the OS run at EL1
+  # as a Gunyah guest, the way the stock Qualcomm firmware boots them with
+  # the default xbl_config.
+  #
+  gQcs6490TokenSpaceGuid.PcdExitGunyah|FALSE|BOOLEAN|0x00000001
+
+  #
+  # DRAM described from PcdSystemMemoryBase when the RAM partition table XBL
+  # leaves in SMEM cannot be read.
+  #
+  gQcs6490TokenSpaceGuid.PcdFallbackSystemMemorySize|0x80000000|UINT64|0x00000002

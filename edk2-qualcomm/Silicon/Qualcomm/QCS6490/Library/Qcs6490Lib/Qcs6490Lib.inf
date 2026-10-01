@@ -1,0 +1,57 @@
+#/* @file
+#
+#  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#*/
+
+[Defines]
+  INF_VERSION                    = 1.30
+  BASE_NAME                      = Qcs6490Lib
+  FILE_GUID                      = 72b9a754-71be-4364-a685-992a60dc3235
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ArmPlatformLib
+
+[Sources]
+  Qcs6490Mem.c
+  Qcs6490Lib.c
+  Qcs6490Helper.S
+  Qcs6490Helper.h
+  Qcs6490LibInternal.h
+
+[Packages]
+  ArmPkg/ArmPkg.dec
+  ArmPlatformPkg/ArmPlatformPkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  QualcommMinPlatformPkg/QualcommMinPlatformPkg.dec
+  QualcommSiliconPkg/QualcommSiliconPkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  ArmLib
+  ArmSmcLib
+  BaseMemoryLib
+  DebugLib
+  HobLib
+  MemoryAllocationLib
+  PcdLib
+  PrintLib
+  QualcommSmemLib
+  SerialPortLib
+
+[Pcd]
+  gArmTokenSpaceGuid.PcdSystemMemoryBase
+
+[FixedPcd]
+  gArmTokenSpaceGuid.PcdFdBaseAddress
+  gArmTokenSpaceGuid.PcdFdSize
+  gQcs6490TokenSpaceGuid.PcdExitGunyah
+  gQcs6490TokenSpaceGuid.PcdFallbackSystemMemorySize
+
+[Ppis]
+  gArmMpCoreInfoPpiGuid
