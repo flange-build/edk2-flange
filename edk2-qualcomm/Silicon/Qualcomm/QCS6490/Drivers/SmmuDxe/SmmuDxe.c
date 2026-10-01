@@ -15,7 +15,8 @@
   nothing to do.
 
   The stream-to-context entries are put back at ExitBootServices, so the OS
-  finds no stream matched that the boot firmware did not match. The bypass
+  finds no stream matched that the boot firmware did not match. The display
+  stops fetching before that, in the BeforeExitBootServices group. The bypass
   context bank stays as it is: the hypervisor aborts a guest that gives a
   context bank the stage 2 type the bank reads back with, and Linux sets up
   the same context bank the same way anyway.
@@ -31,6 +32,8 @@
 #include <Library/DebugLib.h>
 #include <Library/IoLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+
+#include <Protocol/Qcs6490SmmuReady.h>
 
 //
 // apps_smmu in kodiak.dtsi.
@@ -55,6 +58,8 @@
 #define SMMU_SMR(n)          (0x800 + 4 * (n))
 #define SMMU_SMR_VALID       BIT31
 #define SMMU_SMR_MASK_SHIFT  16
+#define SMMU_SMR_ID_MASK     0x7FFF
+#define SMMU_SMR_EXID_MASK   0xFFFF
 
 #define SMMU_S2CR(n)              (0xC00 + 4 * (n))
 #define SMMU_S2CR_TYPE(x)         (((x) >> 16) & 0x3)
@@ -79,7 +84,8 @@ typedef struct {
 // iommus of the devices UEFI does DMA with, from kodiak.dtsi.
 //
 STATIC CONST SMMU_STREAM  mStreams[] = {
-  { 0x80, 0x0, "UFS" },
+  { 0x80,  0x0,   "UFS"  },
+  { 0x900, 0x402, "MDSS" },
 };
 
 typedef struct {
@@ -120,6 +126,48 @@ IsEntryValid (
   }
 
   return (MmioRead32 (APPS_SMMU_BASE + SMMU_SMR (Index)) & SMMU_SMR_VALID) != 0;
+}
+
+/**
+  Returns whether a valid entry already matches some of a stream's IDs, in
+  which case a second entry would be a stream match conflict.
+
+  @param[in]  NumSmrg  The number of entries.
+  @param[in]  Stream   The stream.
+  @param[out] Index    The entry that matches.
+
+  @retval TRUE   An entry matches.
+  @retval FALSE  None does.
+**/
+STATIC
+BOOLEAN
+FindOverlappingEntry (
+  IN  UINTN              NumSmrg,
+  IN  CONST SMMU_STREAM  *Stream,
+  OUT UINTN              *Index
+  )
+{
+  UINT32  Smr;
+  UINT32  FieldMask;
+  UINT32  Id;
+  UINT32  Mask;
+
+  FieldMask = mExtendedIds ? SMMU_SMR_EXID_MASK : SMMU_SMR_ID_MASK;
+
+  for (*Index = 0; *Index < NumSmrg; (*Index)++) {
+    if (!IsEntryValid (*Index)) {
+      continue;
+    }
+
+    Smr  = MmioRead32 (APPS_SMMU_BASE + SMMU_SMR (*Index));
+    Id   = Smr & FieldMask;
+    Mask = (Smr >> SMMU_SMR_MASK_SHIFT) & FieldMask;
+    if (((Id ^ Stream->Id) & ~(Mask | Stream->Mask) & FieldMask) == 0) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
 }
 
 /**
@@ -195,6 +243,29 @@ RestoreSmmu (
 }
 
 /**
+  Tells the drivers that do DMA that their streams are set up.
+
+  @retval EFI_SUCCESS  The marker protocol is installed.
+  @retval Other        It could not be installed.
+**/
+STATIC
+EFI_STATUS
+InstallSmmuReady (
+  VOID
+  )
+{
+  EFI_HANDLE  Handle;
+
+  Handle = NULL;
+  return gBS->InstallMultipleProtocolInterfaces (
+                &Handle,
+                &gQcs6490SmmuReadyProtocolGuid,
+                NULL,
+                NULL
+                );
+}
+
+/**
   Entry point.
 
   @param[in]  ImageHandle  The image handle.
@@ -210,18 +281,19 @@ SmmuDxeInitialize (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  UINT32  Idr0;
-  UINT32  Idr1;
-  UINTN   NumSmrg;
-  UINTN   NumCb;
-  UINTN   Stream;
-  UINTN   Index;
-  UINT32  Smr;
-  UINT32  S2cr;
+  UINT32      Idr0;
+  UINT32      Idr1;
+  UINTN       NumSmrg;
+  UINTN       NumCb;
+  UINTN       Stream;
+  UINTN       Index;
+  UINT32      Smr;
+  UINT32      S2cr;
+  EFI_STATUS  Status;
 
   if (ArmReadCurrentEL () != AARCH64_EL1) {
     DEBUG ((DEBUG_INFO, "%a: not a Gunyah guest, SMMU left alone\n", __func__));
-    return EFI_SUCCESS;
+    return InstallSmmuReady ();
   }
 
   Idr0 = MmioRead32 (APPS_SMMU_BASE + SMMU_IDR0);
@@ -251,6 +323,20 @@ SmmuDxeInitialize (
   }
 
   for (Stream = 0; Stream < ARRAY_SIZE (mStreams); Stream++) {
+    if (FindOverlappingEntry (NumSmrg, &mStreams[Stream], &Index)) {
+      DEBUG ((
+        DEBUG_WARN,
+        "%a: %a stream 0x%x already matched by entry %u (SMR 0x%x, S2CR 0x%x), left alone\n",
+        __func__,
+        mStreams[Stream].Name,
+        mStreams[Stream].Id,
+        Index,
+        MmioRead32 (APPS_SMMU_BASE + SMMU_SMR (Index)),
+        MmioRead32 (APPS_SMMU_BASE + SMMU_S2CR (Index))
+        ));
+      continue;
+    }
+
     for (Index = 0; Index < NumSmrg && IsEntryValid (Index); Index++) {
     }
 
@@ -293,11 +379,17 @@ SmmuDxeInitialize (
 
   ArmDataSynchronizationBarrier ();
 
-  return gBS->CreateEvent (
-                EVT_SIGNAL_EXIT_BOOT_SERVICES,
-                TPL_NOTIFY,
-                RestoreSmmu,
-                NULL,
-                &mExitBootServicesEvent
-                );
+  Status = gBS->CreateEvent (
+                  EVT_SIGNAL_EXIT_BOOT_SERVICES,
+                  TPL_NOTIFY,
+                  RestoreSmmu,
+                  NULL,
+                  &mExitBootServicesEvent
+                  );
+  if (EFI_ERROR (Status)) {
+    RestoreSmmu (NULL, NULL);
+    return Status;
+  }
+
+  return InstallSmmuReady ();
 }

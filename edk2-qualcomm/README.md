@@ -54,9 +54,9 @@ memory and do not survive a reboot.
 - **SMMU.** Under Gunyah the apps SMMU faults DMA from any stream the guest
   has not set up, and Gunyah takes the system down for a crash dump on the
   first UFS command. Upstream never meets this, since it always removes
-  Gunyah. `SmmuDxe` lets the UFS stream bypass stage 1 the way Linux does
-  under the Qualcomm hypervisor, and puts the stream entry back at
-  ExitBootServices.
+  Gunyah. `SmmuDxe` lets the UFS and display streams bypass stage 1 the way
+  Linux does under the Qualcomm hypervisor, and puts the stream entries back
+  at ExitBootServices.
 - **SMBIOS** describes the board, the cores with their own frequencies, and
   the memory.
 - **Boot menu.** Every device is connected before booting, so the UFS LUNs
@@ -211,7 +211,7 @@ edk2-qualcomm/
     │   ├── MemoryInitPeiLib/    MMU setup
     │   └── OemMiscLib/          SMBIOS
     └── Drivers/
-        ├── SmmuDxe/             SMMU set up for UFS DMA under Gunyah
+        ├── SmmuDxe/             SMMU set up for UFS and display DMA under Gunyah
         ├── QupFwDxe/            QUP serial engine firmware for the OS
         └── SmbiosMemoryDxe/     SMBIOS memory records
 ```

@@ -19,6 +19,7 @@
 
 [Packages]
   MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
 
 [LibraryClasses]
   ArmLib
@@ -26,6 +27,9 @@
   IoLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint
+
+[Protocols]
+  gQcs6490SmmuReadyProtocolGuid                 ## PRODUCES
 
 [Depex]
   TRUE

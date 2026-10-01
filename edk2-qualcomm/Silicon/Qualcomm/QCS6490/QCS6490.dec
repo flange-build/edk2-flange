@@ -15,6 +15,8 @@
   PACKAGE_VERSION                = 0.1
 
 [Includes]
+  Include
+
   #
   # For the device trees built from devicetree-rebasing (resolved through
   # PACKAGES_PATH, like the Rockchip boards do).
@@ -23,6 +25,13 @@
 
 [Guids.common]
   gQcs6490TokenSpaceGuid = { 0xb1807de8, 0xa80e, 0x4fcd, { 0xba, 0x44, 0xfd, 0x98, 0xcb, 0x27, 0x9e, 0x4e } }
+
+[Protocols.common]
+  #
+  # Installed (with no interface) once SmmuDxe has set up the streams of the
+  # devices UEFI does DMA with.
+  #
+  gQcs6490SmmuReadyProtocolGuid = { 0xfc576c2b, 0xcb3c, 0x44ec, { 0x82, 0x5a, 0xea, 0xdc, 0x52, 0xdc, 0xcb, 0x69 } }
 
 [PcdsFixedAtBuild.common]
   #
