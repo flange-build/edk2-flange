@@ -1,0 +1,77 @@
+#/** @file
+#
+#  HDMI output through an LT9611 bridge on DSI0, as a GOP.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490MdssDisplayDxe
+  FILE_GUID                      = adcc5751-511b-4ce0-89ae-c01f118c49aa
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = MdssDisplayDxeInitialize
+
+[Sources]
+  Diag.c
+  Dpu.c
+  Dsi.c
+  Dsi.h
+  DsiPhy.c
+  Edid.c
+  Gop.c
+  Gop.h
+  GpioI2c.c
+  Lt9611.c
+  Lt9611Internal.h
+  MdssDisplay.h
+  MdssDisplayDxe.c
+  MdssPower.h
+  Power.c
+  Rpmh.c
+  Tlmm.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  CacheMaintenanceLib
+  DebugLib
+  FrameBufferBltLib
+  IoLib
+  MemoryAllocationLib
+  PcdLib
+  TimerLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+
+[Protocols]
+  gEfiCpuArchProtocolGuid                       ## CONSUMES
+  gEfiDevicePathProtocolGuid                    ## PRODUCES
+  gEfiEdidActiveProtocolGuid                    ## SOMETIMES_PRODUCES
+  gEfiEdidDiscoveredProtocolGuid                ## SOMETIMES_PRODUCES
+  gEfiGraphicsOutputProtocolGuid                ## PRODUCES
+
+[Guids]
+  gEfiEventBeforeExitBootServicesGuid           ## CONSUMES ## Event
+
+[FixedPcd]
+  gQcs6490TokenSpaceGuid.PcdDisplayEnable
+  gQcs6490TokenSpaceGuid.PcdLt9611I2cAddress
+  gQcs6490TokenSpaceGuid.PcdLt9611SdaGpio
+  gQcs6490TokenSpaceGuid.PcdLt9611SclGpio
+  gQcs6490TokenSpaceGuid.PcdLt9611I2cPinFunction
+  gQcs6490TokenSpaceGuid.PcdLt9611ResetGpio
+  gQcs6490TokenSpaceGuid.PcdLt9611PowerGpio
+  gQcs6490TokenSpaceGuid.PcdLt9611PortB
+
+[Depex]
+  gEfiCpuArchProtocolGuid AND gQcs6490SmmuReadyProtocolGuid

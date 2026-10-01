@@ -54,3 +54,23 @@
   # the board's device tree gives it (1 SPI, 2 UART, 3 I2C). Ends at 0.
   #
   gQcs6490TokenSpaceGuid.PcdQupFwSerialEngines|{ 0x0 }|VOID*|0x00000003
+
+  #
+  # HDMI output through an LT9611 MIPI DSI to HDMI bridge on DSI0
+  # (MdssDisplayDxe). Off unless the board describes the bridge.
+  #
+  gQcs6490TokenSpaceGuid.PcdDisplayEnable|FALSE|BOOLEAN|0x00000010
+
+  #
+  # How the LT9611 is wired: its 7-bit I2C address, the GPIOs of its I2C bus
+  # (driven as GPIOs by UEFI) and the TLMM function they go back to for the
+  # OS, its reset and 3.3 V enable GPIOs, and whether its MIPI input is on
+  # port B.
+  #
+  gQcs6490TokenSpaceGuid.PcdLt9611I2cAddress|0x39|UINT8|0x00000011
+  gQcs6490TokenSpaceGuid.PcdLt9611SdaGpio|0|UINT16|0x00000012
+  gQcs6490TokenSpaceGuid.PcdLt9611SclGpio|0|UINT16|0x00000013
+  gQcs6490TokenSpaceGuid.PcdLt9611I2cPinFunction|0|UINT8|0x00000014
+  gQcs6490TokenSpaceGuid.PcdLt9611ResetGpio|0|UINT16|0x00000015
+  gQcs6490TokenSpaceGuid.PcdLt9611PowerGpio|0|UINT16|0x00000016
+  gQcs6490TokenSpaceGuid.PcdLt9611PortB|FALSE|BOOLEAN|0x00000017

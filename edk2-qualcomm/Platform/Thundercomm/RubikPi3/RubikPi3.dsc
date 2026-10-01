@@ -52,6 +52,20 @@
   #
   gQcs6490TokenSpaceGuid.PcdQupFwSerialEngines|{ UINT32(0x00980003), UINT32(0x00984003), UINT32(0x00988002), UINT32(0x0099C002), UINT32(0x00A84003), UINT32(0x00A90001), UINT32(0x00A9C003), UINT32(0) }
 
+  #
+  # HDMI: DSI0 -> LT9611 (MIPI input on port B) -> HDMI-A. The LT9611 sits on
+  # i2c9 (QUP1 SE1, GPIO36/37, function 1 "qup11") at 0x39, with its reset on
+  # GPIO21 and its 3.3 V enable on GPIO83.
+  #
+  gQcs6490TokenSpaceGuid.PcdDisplayEnable|TRUE
+  gQcs6490TokenSpaceGuid.PcdLt9611I2cAddress|0x39
+  gQcs6490TokenSpaceGuid.PcdLt9611SdaGpio|36
+  gQcs6490TokenSpaceGuid.PcdLt9611SclGpio|37
+  gQcs6490TokenSpaceGuid.PcdLt9611I2cPinFunction|1
+  gQcs6490TokenSpaceGuid.PcdLt9611ResetGpio|21
+  gQcs6490TokenSpaceGuid.PcdLt9611PowerGpio|83
+  gQcs6490TokenSpaceGuid.PcdLt9611PortB|TRUE
+
 [PcdsDynamicDefault.common]
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemManufacturer|L"Thundercomm"
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemSerialNumber|L"SN0000"

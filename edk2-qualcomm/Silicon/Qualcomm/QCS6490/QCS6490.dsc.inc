@@ -42,6 +42,7 @@
   BaseLib|MdePkg/Library/BaseLib/BaseLib.inf
   SafeIntLib|MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
   BmpSupportLib|MdeModulePkg/Library/BaseBmpSupportLib/BaseBmpSupportLib.inf
+  FrameBufferBltLib|MdeModulePkg/Library/FrameBufferBltLib/FrameBufferBltLib.inf
   GptLib|MdeModulePkg/Library/GptLib/GptLib.inf
   SynchronizationLib|MdePkg/Library/BaseSynchronizationLib/BaseSynchronizationLib.inf
   PerformanceLib|MdePkg/Library/BasePerformanceLibNull/BasePerformanceLibNull.inf
@@ -430,6 +431,17 @@
   gQcomKodiakPlatformTokenSpaceGuid.PcdPlatformVersionMajor|0x0
   gQcomKodiakPlatformTokenSpaceGuid.PcdPlatformVersionMinor|0x0
 
+  #
+  # Console: the GOP's own resolution, and the text mode the Rockchip
+  # platforms use, which the serial terminal has too.
+  #
+  gEfiMdeModulePkgTokenSpaceGuid.PcdVideoHorizontalResolution|0
+  gEfiMdeModulePkgTokenSpaceGuid.PcdVideoVerticalResolution|0
+  gEfiMdeModulePkgTokenSpaceGuid.PcdConOutColumn|100
+  gEfiMdeModulePkgTokenSpaceGuid.PcdConOutRow|31
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSetupConOutColumn|100
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSetupConOutRow|31
+
 ################################################################################
 #
 # Components Section - list of all EDK II Modules needed by this Platform
@@ -596,3 +608,8 @@
   # QUP serial engine firmware for the OS
   #
   Silicon/Qualcomm/QCS6490/Drivers/QupFwDxe/QupFwDxe.inf
+
+  #
+  # HDMI through an LT9611 on DSI0, for boards that set PcdDisplayEnable
+  #
+  Silicon/Qualcomm/QCS6490/Drivers/MdssDisplayDxe/MdssDisplayDxe.inf

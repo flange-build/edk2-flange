@@ -171,6 +171,12 @@ READ_LOCK_STATUS   = TRUE
   # QUP serial engine firmware for the OS
   #
   INF Silicon/Qualcomm/QCS6490/Drivers/QupFwDxe/QupFwDxe.inf
+
+  #
+  # HDMI through an LT9611 on DSI0, for boards that set PcdDisplayEnable
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/MdssDisplayDxe/MdssDisplayDxe.inf
+
   #
   # TianoCore logo (splash screen)
   #

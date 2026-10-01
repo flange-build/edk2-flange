@@ -21,6 +21,9 @@ Working:
 
 - Serial console on the debug UART (uart5, 115200 8N1), with the setup UI
   (press ESC or F2 during the countdown), in English or Simplified Chinese.
+- HDMI (DSI0 -> Lontium LT9611 bridge) at 1920x1080@60 as a GOP: boot logo,
+  console and setup UI. The display is switched off again before the OS
+  starts, which drives it itself.
 - UFS: every LUN gets a boot option; GRUB on the ESP boots Linux.
 - The QUP serial engine firmware (`qupfw_a`) is loaded for the OS, which
   needs it for I2C, SPI and the Bluetooth UART, and so for HDMI.
@@ -34,9 +37,9 @@ flange rubikpi3 image (Thundercomm 6.6.90 kernel): the kernel starts at EL1
 under Gunyah, and ADSP, CDSP, video, Wi-Fi and the USB 3 Ethernet come up as
 with the stock firmware.
 
-Not supported yet: display (HDMI goes through a DSI bridge that needs an
-MDSS driver), USB, networking and PCIe in UEFI. UEFI variables are kept in
-memory and do not survive a reboot.
+Not supported yet: USB, networking and PCIe in UEFI; display modes other
+than 1080p60; USB-C DisplayPort. UEFI variables are kept in memory and do
+not survive a reboot.
 
 ## What differs from the upstream RB3 Gen 2 port
 
@@ -212,6 +215,7 @@ edk2-qualcomm/
     │   └── OemMiscLib/          SMBIOS
     └── Drivers/
         ├── SmmuDxe/             SMMU set up for UFS and display DMA under Gunyah
+        ├── MdssDisplayDxe/      HDMI: DPU, DSI, LT9611, GOP
         ├── QupFwDxe/            QUP serial engine firmware for the OS
         └── SmbiosMemoryDxe/     SMBIOS memory records
 ```
