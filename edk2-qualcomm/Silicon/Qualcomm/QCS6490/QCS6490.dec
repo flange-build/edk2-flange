@@ -138,3 +138,14 @@
   # string.
   #
   gQcs6490TokenSpaceGuid.PcdDspFirmwarePartition|L"rootfs"|VOID*|0x00000030
+
+  #
+  # PCIe0 (Qcs6490PciHostBridgeLib), off unless the board wires it: its
+  # PERST# GPIO, and the GPIOs that power what sits on the link, driven high
+  # in order before PERST# is released, each followed by PcdPcie0PowerRampUs
+  # (a UINT16 list ending with 0xFFFF).
+  #
+  gQcs6490TokenSpaceGuid.PcdPcie0Enable|FALSE|BOOLEAN|0x00000040
+  gQcs6490TokenSpaceGuid.PcdPcie0PerstGpio|0|UINT16|0x00000041
+  gQcs6490TokenSpaceGuid.PcdPcie0PowerGpios|{ UINT16(0xFFFF) }|VOID*|0x00000042
+  gQcs6490TokenSpaceGuid.PcdPcie0PowerRampUs|50000|UINT32|0x00000043

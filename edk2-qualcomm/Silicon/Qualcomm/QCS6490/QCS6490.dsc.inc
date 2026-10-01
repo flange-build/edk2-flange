@@ -122,6 +122,10 @@
   Qcs6490GccLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490GccLib/Qcs6490GccLib.inf
   Qcs6490TlmmLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490TlmmLib/Qcs6490TlmmLib.inf
 
+  # The PCIe0 root complex, for PciHostBridgeDxe
+  PciHostBridgeLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490PciHostBridgeLib/Qcs6490PciHostBridgeLib.inf
+  PciSegmentLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490PciSegmentLib/Qcs6490PciSegmentLib.inf
+
   # Device trees (DSP preload)
   FdtLib|MdePkg/Library/BaseFdtLib/BaseFdtLib.inf
 
@@ -678,3 +682,16 @@
   # Leaves Gunyah for EL2 at ExitBootServices, after the DSPs were started
   #
   Silicon/Qualcomm/QCS6490/Drivers/GunyahExitDxe/GunyahExitDxe.inf
+
+  #
+  # PCIe0, for boards that set PcdPcie0Enable. The root complex is brought up
+  # by Qcs6490PciHostBridgeLib. Its DMA is treated as non-coherent, as the
+  # UFS's is, and kept below 4 GiB.
+  #
+  ArmPkg/Drivers/ArmPciCpuIo2Dxe/ArmPciCpuIo2Dxe.inf
+  MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf
+  MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe.inf
+  EmbeddedPkg/Drivers/NonCoherentIoMmuDxe/NonCoherentIoMmuDxe.inf {
+    <PcdsFixedAtBuild>
+      gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit|0xFFFFFFFF
+  }

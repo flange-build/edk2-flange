@@ -96,8 +96,9 @@ typedef struct {
 // iommus of the devices UEFI does DMA with, from kodiak.dtsi.
 //
 STATIC CONST SMMU_STREAM  mStreams[] = {
-  { 0x80,  0x0,   "UFS"  },
-  { 0x900, 0x402, "MDSS" },
+  { 0x80,   0x0,   "UFS"   },
+  { 0x900,  0x402, "MDSS"  },
+  { 0x1c00, 0x1,   "PCIE0" },   // the root port and 01:00.0 (iommu-map)
 };
 
 typedef struct {

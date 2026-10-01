@@ -213,6 +213,14 @@ READ_LOCK_STATUS   = TRUE
   INF Silicon/Qualcomm/QCS6490/Drivers/GunyahExitDxe/GunyahExitDxe.inf
 
   #
+  # PCIe0, for boards that set PcdPcie0Enable
+  #
+  INF ArmPkg/Drivers/ArmPciCpuIo2Dxe/ArmPciCpuIo2Dxe.inf
+  INF MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf
+  INF MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe.inf
+  INF EmbeddedPkg/Drivers/NonCoherentIoMmuDxe/NonCoherentIoMmuDxe.inf
+
+  #
   # Splash screen logo, the same on every platform in this repository
   #
   INF edk2-common/Drivers/LogoDxe/LogoDxe.inf

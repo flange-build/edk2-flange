@@ -74,6 +74,16 @@
   gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun|4
   gQcs6490TokenSpaceGuid.PcdNvStorePartitionName|L"logfs"
 
+  #
+  # USB 3.0 Type-A ports: a Renesas uPD720201 xHCI (no EEPROM; firmware from
+  # the usb_fw partition) on PCIe0, with PERST# on GPIO87. Its supplies come
+  # up in the order the device tree chains them: GPIO86 (vreg_usbhub_pwr_1v8),
+  # GPIO7 (vreg_eth_1v8), GPIO136 (vreg_usbhub_rest_1v8), 50 ms apart.
+  #
+  gQcs6490TokenSpaceGuid.PcdPcie0Enable|TRUE
+  gQcs6490TokenSpaceGuid.PcdPcie0PerstGpio|87
+  gQcs6490TokenSpaceGuid.PcdPcie0PowerGpios|{ UINT16(86), UINT16(7), UINT16(136), UINT16(0xFFFF) }
+
 [PcdsDynamicDefault.common]
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemManufacturer|L"Thundercomm"
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemSerialNumber|L"SN0000"
