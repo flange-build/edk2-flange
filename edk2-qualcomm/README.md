@@ -29,6 +29,8 @@ Working:
 - UFS: every LUN gets a boot option; GRUB on the ESP boots Linux.
 - The QUP serial engine firmware (`qupfw_a`) is loaded for the OS, which
   needs it for I2C, SPI and the Bluetooth UART, and so for HDMI.
+- The ADSP and CDSP are started before the OS, for a Linux at EL2 that
+  cannot start them itself, see [DSPs at EL2](#dsps-at-el2).
 - The full DRAM (8 GiB), read from the RAM partition table XBL leaves in
   SMEM, with the firmware carve-outs reserved.
 - The mainline RUBIK Pi 3 device tree, handed over to the OS.
@@ -40,7 +42,8 @@ under Gunyah, and ADSP, CDSP, video, Wi-Fi and the USB 3 Ethernet come up as
 with the stock firmware.
 The flange mainline image (Linux 7.0.2) runs at EL2 with KVM and HDMI,
 the exception level chosen both by `xbl_config_kvm.elf` and by the
-Hypervisor setting.
+Hypervisor setting, and attaches to the ADSP and CDSP UEFI started (FastRPC
+devices and the GLINK channels of both come up).
 
 Not supported yet: USB, networking and PCIe in UEFI; display modes other
 than 1080p60; USB-C DisplayPort. Variables the OS writes at runtime are not
@@ -120,9 +123,9 @@ Build options are passed with `--edk2-flags`, for instance:
 ## Exception level
 
 XBL always starts UEFI at EL1 under the Gunyah hypervisor. First thing,
-before there is a console, UEFI decides whether to keep Gunyah or to ask
-TrustZone to tear it down and continue at EL2, with the same SMC the stock
-UEFI uses. It decides from, in this order:
+before there is a console, UEFI decides whether to keep Gunyah or to have
+it torn down and continue at EL2, with the same SMC the stock UEFI uses. It
+decides from, in this order:
 
 1. The **Hypervisor** setting in Device Manager > Platform Configuration
    (平台配置 > 虚拟机监控程序): EL1 (Gunyah) or EL2 (KVM). It takes effect
@@ -134,20 +137,69 @@ UEFI uses. It decides from, in this order:
    its address in the shared IMEM cookie at 0x146AA000 (+0x58, size at +0x60).
 3. When that cannot be read either: the `EXIT_GUNYAH` build option.
 
+For EL2, Gunyah leaves either right away, or, when the DSPs are to be
+preloaded, only once the OS loader's ExitBootServices has succeeded, which
+is also when the stock UEFI makes the call (see [DSPs at EL2](#dsps-at-el2)).
+Gunyah takes one such call per boot, so a boot that keeps Gunyah until then
+does not confirm it at the start the way an EL1 boot does.
+
 The console says what was decided and why, in `RELEASE` builds too, for
 instance:
 
 ```
-QCS6490: hypervisor: setting Auto, xbl_config KVM -> EL2 (leaving Gunyah)
-QCS6490: Keeping Gunyah, running at EL1: confirmed by TrustZone
+QCS6490: hypervisor: setting Auto, xbl_config KVM -> EL2 (KVM)
+QCS6490: hypervisor: Gunyah stays until ExitBootServices (DSP preload)
 ```
 
 The Platform Configuration page shows the same. The stock UEFI stops when
 TrustZone rejects the call; this firmware warns and carries on at EL1.
 
 The vendor kernel needs EL1 for its remote processors (ADSP, CDSP, video).
-A mainline kernel expects EL2 and gets KVM, but see the flange notes on the
-DSPs.
+A mainline kernel expects EL2 and gets KVM, and the DSPs UEFI started.
+
+## DSPs at EL2
+
+Without Gunyah, Linux cannot start the ADSP and CDSP on this board: it asks
+TrustZone for a resource table this TrustZone does not provide. Linux 7.0
+does attach to DSPs the boot firmware started (it checks ready and handover
+in their SMP2P entries when it probes), as on the Radxa Dragon Q6A. So
+`DspPreloadDxe` starts them at ReadyToBoot, the way Linux's `qcom_q6v5_pas`
+would: firmware from the OS's root file system (`/usr/lib/firmware`,
+partition `PcdDspFirmwarePartition`, ext4 through Ext4Dxe), the AOP
+`load_state` message, proxy votes for their power rails and the CDSP's path
+to memory, the SMP2P entries Linux's SMP2P driver would create, and the
+TrustZone PAS calls. It waits for ready and handover.
+
+TrustZone only runs DSPs it starts for a Gunyah guest: at EL2 it accepts
+every PAS call, but the DSPs never run. A boot that runs the OS at EL2 with
+the DSPs preloaded therefore keeps Gunyah until ExitBootServices, as the
+stock UEFI does anyway: `GunyahExitDxe` wraps ExitBootServices and, once it
+has succeeded, has Gunyah leave and carries on at EL2 with UEFI's
+translation tables, before returning to the OS loader. Gunyah wipes the SMMU
+stream entries it does not leave in bypass, so `SmmuDxe` then sets up those
+of the DSPs, which Linux adopts in bypass; and the `iommus` of their
+remoteproc nodes are removed from the device tree GRUB loads (through
+`EFI_DT_FIXUP_PROTOCOL`), as Linux would put the running DSPs in an empty
+SMMU domain otherwise.
+
+The **DSP Preload** setting (预加载 DSP) picks Auto (when the OS runs at
+EL2), Disabled or Always (at EL1 too), and each DSP; SEC reads it too, so it
+takes effect at the next reset. Disabled brings back a boot that leaves
+Gunyah first thing. `PcdGunyahLateExit` changes when Gunyah leaves: 0 always
+first thing, 1 (the default) at ExitBootServices when the DSPs are
+preloaded, 2 always at ExitBootServices.
+
+The console shows each step, for instance:
+
+```
+DspPreload: adsp running after 146 ms
+GunyahExit: leaving Gunyah: srtm
+HandOverNow: adsp stream 0x1800 mask 0x0: entry 0, SMR 0x80001800, S2CR 0x100FF, kept for the OS
+DspPreload: after the Gunyah exit: adsp SMP2P 0x6 (running)
+```
+
+`srtm` are the steps of the switch (call made, back at EL2, translation
+tables in place, MMU on); a boot that stops after one of them tells where.
 
 ## Settings
 
@@ -243,14 +295,19 @@ edk2-qualcomm/
     ├── Library/
     │   ├── Qcs6490Lib/          ArmPlatformLib: EL decision and switch, early
     │   │                        UFS read of the variable store, memory map
+    │   ├── Qcs6490NvStatusLib/  What SEC decided, for DXE drivers
+    │   ├── Qcs6490RpmhLib/      RPMh votes through the apps RSC
     │   ├── MemoryInitPeiLib/    MMU setup
     │   └── OemMiscLib/          SMBIOS
     └── Drivers/
-        ├── SmmuDxe/             SMMU set up for UFS and display DMA under Gunyah
+        ├── SmmuDxe/             SMMU set up for UFS and display DMA under Gunyah,
+        │                        DSP streams handed over to the OS
         ├── NvStoreFvbDxe/       Variable store FVB, written back to UFS
-        ├── PlatformConfigDxe/   Platform Configuration page (Hypervisor)
+        ├── PlatformConfigDxe/   Platform Configuration page (Hypervisor, DSP preload)
         ├── MdssDisplayDxe/      HDMI: DPU, DSI, LT9611, GOP
         ├── QupFwDxe/            QUP serial engine firmware for the OS
+        ├── DspPreloadDxe/       ADSP and CDSP started before the OS
+        ├── GunyahExitDxe/       Gunyah leaves at ExitBootServices
         └── SmbiosMemoryDxe/     SMBIOS memory records
 ```
 

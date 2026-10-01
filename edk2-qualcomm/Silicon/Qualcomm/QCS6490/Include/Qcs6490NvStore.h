@@ -57,7 +57,7 @@
 #define QCS6490_NVSTORE_BLOCK_SIZE  SIZE_4KB
 
 #define QCS6490_NVSTORE_STATUS_SIGNATURE  SIGNATURE_32 ('Q', 'N', 'V', 'S')
-#define QCS6490_NVSTORE_STATUS_VERSION    1
+#define QCS6490_NVSTORE_STATUS_VERSION    2
 
 //
 // QCS6490_NVSTORE_STATUS.LoadResult
@@ -75,6 +75,38 @@
 // invalid.
 //
 #define QCS6490_HYPERVISOR_SETTING_NONE  0xFF
+
+//
+// QCS6490_NVSTORE_STATUS.DspPreloadMode when the DspPreload variable is
+// missing or invalid; SEC then goes by its default (Auto, both DSPs).
+//
+#define QCS6490_DSP_PRELOAD_SETTING_NONE  0xFF
+
+//
+// QCS6490_NVSTORE_STATUS.DspPreloadDsps
+//
+#define QCS6490_DSP_PRELOAD_ADSP  BIT0
+#define QCS6490_DSP_PRELOAD_CDSP  BIT1
+
+//
+// QCS6490_NVSTORE_STATUS.GunyahExit: when UEFI leaves Gunyah.
+//
+#define QCS6490_GUNYAH_EXIT_NONE                0   // never: UEFI and the OS stay at EL1
+#define QCS6490_GUNYAH_EXIT_SEC                 1   // first thing in SEC
+#define QCS6490_GUNYAH_EXIT_EXIT_BOOT_SERVICES  2   // once the OS loader's ExitBootServices succeeded
+
+//
+// PcdGunyahLateExit: when a boot that runs the OS at EL2 leaves Gunyah.
+//
+#define QCS6490_GUNYAH_LATE_EXIT_NEVER    0   // always in SEC
+#define QCS6490_GUNYAH_LATE_EXIT_PRELOAD  1   // at ExitBootServices when the DSPs are preloaded
+#define QCS6490_GUNYAH_LATE_EXIT_ALWAYS   2   // always at ExitBootServices
+
+//
+// QCS6490_NVSTORE_STATUS.ExitGunyahStatus and .LateExitStatus when the call
+// was not made.
+//
+#define QCS6490_NVSTORE_SMC_NOT_ISSUED  MAX_INT32
 
 //
 // QCS6490_NVSTORE_STATUS.XblOsConfig when xbl_config has no
@@ -101,6 +133,11 @@ typedef struct {
   UINT8     HypervisorDecision;   // QCS6490_HYPERVISOR_MODE_EL1 or _EL2: what SEC asked for
   INT32     ExitGunyahStatus;     // TZ result of the exit call, MAX_INT32 if not issued
   UINT32    Reserved;
+  UINT8     DspPreloadMode;       // DspPreload Mode as found, QCS6490_DSP_PRELOAD_SETTING_NONE if absent
+  UINT8     DspPreloadDsps;       // QCS6490_DSP_PRELOAD_ADSP and _CDSP, as SEC went by
+  UINT8     GunyahExit;           // QCS6490_GUNYAH_EXIT_*: when UEFI leaves (or left) Gunyah
+  UINT8     Reserved2;
+  INT32     LateExitStatus;       // Gunyah's result of the exit call at ExitBootServices, MAX_INT32 if not issued
 } QCS6490_NVSTORE_STATUS;
 
 #endif // QCS6490_NV_STORE_H_

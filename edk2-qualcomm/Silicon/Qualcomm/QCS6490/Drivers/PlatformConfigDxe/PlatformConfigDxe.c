@@ -356,19 +356,25 @@ SetStatusValue (
 
   @param[in]  HiiHandle  The formset's HII handle.
   @param[in]  Language   The language to fill it in in.
+  @param[in]  NvStatus   The status page, NULL if there is none.
 **/
 STATIC
 VOID
 UpdateExceptionLevel (
-  IN EFI_HII_HANDLE  HiiHandle,
-  IN CONST CHAR8     *Language
+  IN EFI_HII_HANDLE                HiiHandle,
+  IN CONST CHAR8                   *Language,
+  IN CONST QCS6490_NVSTORE_STATUS  *NvStatus  OPTIONAL
   )
 {
   CHAR16  Value[STATUS_VALUE_LENGTH];
   UINTN   CurrentEl;
 
   CurrentEl = ArmReadCurrentEL ();
-  if (CurrentEl == AARCH64_EL1) {
+  if ((CurrentEl == AARCH64_EL1) && (NvStatus != NULL) &&
+      (NvStatus->GunyahExit == QCS6490_GUNYAH_EXIT_EXIT_BOOT_SERVICES))
+  {
+    FormatHiiString (HiiHandle, Language, STRING_TOKEN (STR_HYPERVISOR_EL1_UNTIL_BOOT), Value, sizeof (Value));
+  } else if (CurrentEl == AARCH64_EL1) {
     FormatHiiString (HiiHandle, Language, STRING_TOKEN (STR_HYPERVISOR_EL1), Value, sizeof (Value));
   } else if (CurrentEl == AARCH64_EL2) {
     FormatHiiString (HiiHandle, Language, STRING_TOKEN (STR_HYPERVISOR_EL2), Value, sizeof (Value));
@@ -650,12 +656,13 @@ UpdateStatusStrings (
     NvStatus = &StatusPage;
     DEBUG ((
       DEBUG_INFO,
-      "%a: EL%u; SEC: setting %u, xbl_config %u, decision %u, TrustZone %d, store %u on LUN%u\n",
+      "%a: EL%u; SEC: setting %u, xbl_config %u, decision %u, Gunyah exit %u, TrustZone %d, store %u on LUN%u\n",
       __func__,
       (UINT32)(ArmReadCurrentEL () >> 2),
       NvStatus->HypervisorSetting,
       NvStatus->XblOsConfig,
       NvStatus->HypervisorDecision,
+      NvStatus->GunyahExit,
       NvStatus->ExitGunyahStatus,
       NvStatus->LoadResult,
       NvStatus->Lun
@@ -685,7 +692,7 @@ UpdateStatusStrings (
       continue;
     }
 
-    UpdateExceptionLevel (HiiHandle, Language);
+    UpdateExceptionLevel (HiiHandle, Language, NvStatus);
     UpdateXblConfig (HiiHandle, Language, NvStatus);
     UpdateDecision (HiiHandle, Language, NvStatus);
     UpdateStorage (HiiHandle, Language, NvStatus);

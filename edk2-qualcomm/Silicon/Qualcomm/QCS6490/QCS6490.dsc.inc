@@ -115,6 +115,9 @@
   # RPMh votes through the apps RSC (display, DSP preload)
   Qcs6490RpmhLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490RpmhLib/Qcs6490RpmhLib.inf
 
+  # What SEC found and decided (exception level, variable store)
+  Qcs6490NvStatusLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490NvStatusLib/Qcs6490NvStatusLib.inf
+
   # Device trees (DSP preload)
   FdtLib|MdePkg/Library/BaseFdtLib/BaseFdtLib.inf
 
@@ -666,3 +669,8 @@
   # ADSP and CDSP started before the OS, for a kernel that attaches to them
   #
   Silicon/Qualcomm/QCS6490/Drivers/DspPreloadDxe/DspPreloadDxe.inf
+
+  #
+  # Leaves Gunyah for EL2 at ExitBootServices, after the DSPs were started
+  #
+  Silicon/Qualcomm/QCS6490/Drivers/GunyahExitDxe/GunyahExitDxe.inf

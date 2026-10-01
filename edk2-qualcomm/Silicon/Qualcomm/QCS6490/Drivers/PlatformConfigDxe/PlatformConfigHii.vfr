@@ -48,13 +48,13 @@ formset
     endoneof;
 
     //
-    // Read by DspPreloadDxe when the boot manager boots, so it needs no
-    // reset.
+    // SEC reads it too: when the OS runs at EL2, preloading keeps Gunyah
+    // until ExitBootServices.
     //
     oneof varid = DspPreload.Mode,
       prompt = STRING_TOKEN(STR_DSP_PRELOAD_PROMPT),
       help   = STRING_TOKEN(STR_DSP_PRELOAD_HELP),
-      flags  = NUMERIC_SIZE_1,
+      flags  = NUMERIC_SIZE_1 | RESET_REQUIRED,
       option text = STRING_TOKEN(STR_DSP_PRELOAD_AUTO),     value = QCS6490_DSP_PRELOAD_AUTO,     flags = DEFAULT | MANUFACTURING;
       option text = STRING_TOKEN(STR_DSP_PRELOAD_DISABLED), value = QCS6490_DSP_PRELOAD_DISABLED, flags = 0;
       option text = STRING_TOKEN(STR_DSP_PRELOAD_ALWAYS),   value = QCS6490_DSP_PRELOAD_ALWAYS,   flags = 0;
@@ -64,13 +64,13 @@ formset
       checkbox varid = DspPreload.Adsp,
         prompt = STRING_TOKEN(STR_DSP_PRELOAD_ADSP_PROMPT),
         help   = STRING_TOKEN(STR_DSP_PRELOAD_ADSP_HELP),
-        flags  = CHECKBOX_DEFAULT | CHECKBOX_DEFAULT_MFG,
+        flags  = CHECKBOX_DEFAULT | CHECKBOX_DEFAULT_MFG | RESET_REQUIRED,
       endcheckbox;
 
       checkbox varid = DspPreload.Cdsp,
         prompt = STRING_TOKEN(STR_DSP_PRELOAD_CDSP_PROMPT),
         help   = STRING_TOKEN(STR_DSP_PRELOAD_CDSP_HELP),
-        flags  = CHECKBOX_DEFAULT | CHECKBOX_DEFAULT_MFG,
+        flags  = CHECKBOX_DEFAULT | CHECKBOX_DEFAULT_MFG | RESET_REQUIRED,
       endcheckbox;
     endif;
 

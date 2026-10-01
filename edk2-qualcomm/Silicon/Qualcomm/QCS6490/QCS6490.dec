@@ -27,6 +27,9 @@
   ##  @libraryclass  Polled RPMh requests through DRV2 of the apps RSC.
   Qcs6490RpmhLib|Include/Library/Qcs6490RpmhLib.h
 
+  ##  @libraryclass  The status page SEC leaves after the variable store.
+  Qcs6490NvStatusLib|Include/Library/Qcs6490NvStatusLib.h
+
 [Guids.common]
   gQcs6490TokenSpaceGuid = { 0xb1807de8, 0xa80e, 0x4fcd, { 0xba, 0x44, 0xfd, 0x98, 0xcb, 0x27, 0x9e, 0x4e } }
 
@@ -44,10 +47,16 @@
   gQcs6490SmmuReadyProtocolGuid = { 0xfc576c2b, 0xcb3c, 0x44ec, { 0x82, 0x5a, 0xea, 0xdc, 0x52, 0xdc, 0xcb, 0x69 } }
 
   #
-  # Installed by SmmuDxe at EL2, to hand streams over to the OS in bypass.
-  # Include/Protocol/Qcs6490Smmu.h
+  # Installed by SmmuDxe when the OS runs at EL2, to hand streams over to it
+  # in bypass. Include/Protocol/Qcs6490Smmu.h
   #
   gQcs6490SmmuProtocolGuid = { 0xe7c57892, 0x299f, 0x4197, { 0xa2, 0xb0, 0x7b, 0xee, 0x2c, 0x46, 0xa4, 0x5d } }
+
+  #
+  # Installed by GunyahExitDxe when Gunyah leaves at ExitBootServices, for
+  # drivers to act around the exit. Include/Protocol/Qcs6490GunyahExit.h
+  #
+  gQcs6490GunyahExitProtocolGuid = { 0x4c6bcf46, 0x5e19, 0x4af9, { 0x83, 0xcd, 0x92, 0x67, 0x3c, 0x26, 0xb6, 0x75 } }
 
   #
   # EFI_DT_FIXUP_PROTOCOL of the U-Boot EFI project, which GRUB calls on the
@@ -64,6 +73,15 @@
   # does; FALSE keeps UEFI and the OS at EL1 as a Gunyah guest.
   #
   gQcs6490TokenSpaceGuid.PcdExitGunyah|FALSE|BOOLEAN|0x00000001
+
+  #
+  # When a boot that runs the OS at EL2 leaves Gunyah
+  # (QCS6490_GUNYAH_LATE_EXIT_* in Include/Qcs6490NvStore.h): 0 first thing
+  # in SEC; 1 once the OS loader's ExitBootServices succeeded, when the DSPs
+  # are to be preloaded (TrustZone starts them for a Gunyah guest only),
+  # else in SEC; 2 always at ExitBootServices.
+  #
+  gQcs6490TokenSpaceGuid.PcdGunyahLateExit|1|UINT8|0x00000004
 
   #
   # DRAM described from PcdSystemMemoryBase when the RAM partition table XBL

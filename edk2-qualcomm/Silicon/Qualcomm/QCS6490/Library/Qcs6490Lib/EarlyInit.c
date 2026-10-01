@@ -17,9 +17,12 @@
     3. The variable store partition is looked up in the GPT of its LUN and
        read into memory through the UFS controller XBL left running
        (EarlyUfs.c, EarlyNvStore.c); the SMMU is put back.
-    4. The HypervisorMode variable is read from the store, and
-       OsConfigTableSelection from xbl_config (XblConfig.c).
+    4. The HypervisorMode and DspPreload variables are read from the
+       store, and OsConfigTableSelection from xbl_config (XblConfig.c).
     5. The variable decides, then xbl_config, then PcdExitGunyah.
+    6. For EL2, when the DSPs are to be preloaded (PcdGunyahLateExit), the
+       exit waits for ExitBootServices: the DSPs only run when TrustZone
+       starts them for a Gunyah guest. GunyahExitDxe leaves Gunyah then.
 
   Nothing here may stop the boot: every wait is bounded, and anything that
   fails leaves the variables in memory only, and the exception level to
@@ -274,6 +277,11 @@ Qcs6490NvStoreStatusInit (
   Status->XblOsConfig        = QCS6490_XBL_OS_CONFIG_UNKNOWN;
   Status->HypervisorDecision = Decision;
   Status->ExitGunyahStatus   = QCS6490_SMC_NOT_ISSUED;
+  Status->DspPreloadMode     = QCS6490_DSP_PRELOAD_SETTING_NONE;
+  Status->DspPreloadDsps     = QCS6490_DSP_PRELOAD_ADSP | QCS6490_DSP_PRELOAD_CDSP;
+  Status->GunyahExit         = (Decision == QCS6490_HYPERVISOR_MODE_EL2) ? QCS6490_GUNYAH_EXIT_SEC
+                                                                          : QCS6490_GUNYAH_EXIT_NONE;
+  Status->LateExitStatus     = QCS6490_SMC_NOT_ISSUED;
 
   return Status;
 }
@@ -324,9 +332,10 @@ ReadNvStore (
   IN OUT QCS6490_NVSTORE_STATUS  *Status
   )
 {
-  UINT64         Lba;
-  UINT64         Blocks;
-  RETURN_STATUS  Result;
+  UINT64                      Lba;
+  UINT64                      Blocks;
+  RETURN_STATUS               Result;
+  QCS6490_DSP_PRELOAD_CONFIG  DspPreload;
 
   Result = Qcs6490EarlyFindPartition (Ufs, Lun, Name, &Lba, &Blocks);
   if (RETURN_ERROR (Result)) {
@@ -401,6 +410,12 @@ ReadNvStore (
 
   Status->LoadResult        = QCS6490_NVSTORE_LOAD_OK;
   Status->HypervisorSetting = Qcs6490EarlyFindHypervisorMode ();
+  if (Qcs6490EarlyFindDspPreload (&DspPreload)) {
+    Status->DspPreloadMode = DspPreload.Mode;
+    Status->DspPreloadDsps = (DspPreload.Adsp ? QCS6490_DSP_PRELOAD_ADSP : 0) |
+                             (DspPreload.Cdsp ? QCS6490_DSP_PRELOAD_CDSP : 0);
+  }
+
   Qcs6490Print (
     "QCS6490: variables: LUN%u %s LBA %lu, 0x%x bytes loaded\n",
     Lun,
@@ -562,16 +577,76 @@ DecideHypervisor (
     Default = ", build default";
   }
 
+  //
+  // For EL2, DeferExit () says next when Gunyah leaves.
+  //
   Qcs6490Print (
     "QCS6490: hypervisor: setting %a, xbl_config %a -> EL%u (%a%a)\n",
     SettingName (Setting),
     XblOsConfigName (XblOsConfig),
     (Decision == QCS6490_HYPERVISOR_MODE_EL2) ? 2 : 1,
-    (Decision == QCS6490_HYPERVISOR_MODE_EL2) ? "leaving Gunyah" : "keeping Gunyah",
+    (Decision == QCS6490_HYPERVISOR_MODE_EL2) ? "KVM" : "keeping Gunyah",
     Default
     );
 
   return Decision;
+}
+
+/**
+  For a boot that runs the OS at EL2, decides whether to leave Gunyah now or
+  only once the OS loader's ExitBootServices succeeded (GunyahExitDxe), as
+  PcdGunyahLateExit says: TrustZone starts the DSPs for a Gunyah guest
+  only, so they can only be preloaded before Gunyah leaves.
+
+  @param[in]  Status  The status page, or NULL.
+
+  @retval TRUE   Leave Gunyah at ExitBootServices.
+  @retval FALSE  Leave it now.
+**/
+STATIC
+BOOLEAN
+DeferExit (
+  IN CONST QCS6490_NVSTORE_STATUS  *Status
+  )
+{
+  BOOLEAN      Preload;
+  CONST CHAR8  *Why;
+
+  //
+  // DXE learns of the deferral from the status page only.
+  //
+  if (Status == NULL) {
+    Qcs6490Print ("QCS6490: hypervisor: leaving Gunyah now (no status page for DXE)\n");
+    return FALSE;
+  }
+
+  Preload = (Status->DspPreloadMode != QCS6490_DSP_PRELOAD_DISABLED) && (Status->DspPreloadDsps != 0);
+
+  switch (FixedPcdGet8 (PcdGunyahLateExit)) {
+    case QCS6490_GUNYAH_LATE_EXIT_NEVER:
+      Qcs6490Print ("QCS6490: hypervisor: leaving Gunyah now (build setting)\n");
+      return FALSE;
+
+    case QCS6490_GUNYAH_LATE_EXIT_ALWAYS:
+      Why = "build setting";
+      break;
+
+    default:
+      if (!Preload) {
+        Qcs6490Print ("QCS6490: hypervisor: leaving Gunyah now (DSP preload off)\n");
+        return FALSE;
+      }
+
+      Why = "DSP preload";
+      break;
+  }
+
+  Qcs6490Print (
+    "QCS6490: hypervisor: Gunyah stays until ExitBootServices (%a%a)\n",
+    Why,
+    (Status->DspPreloadMode == QCS6490_DSP_PRELOAD_SETTING_NONE) ? ", default setting" : ""
+    );
+  return TRUE;
 }
 
 /**
@@ -622,7 +697,14 @@ Qcs6490EarlyInit (
     Status->HypervisorDecision = Decision;
   }
 
-  gQcs6490ExitGunyah = (BOOLEAN)(Decision == QCS6490_HYPERVISOR_MODE_EL2);
+  gQcs6490DeferExitGunyah = (Decision == QCS6490_HYPERVISOR_MODE_EL2) && DeferExit (Status);
+  gQcs6490ExitGunyah      = (Decision == QCS6490_HYPERVISOR_MODE_EL2) && !gQcs6490DeferExitGunyah;
+
+  if (Status != NULL) {
+    Status->GunyahExit = gQcs6490DeferExitGunyah ? QCS6490_GUNYAH_EXIT_EXIT_BOOT_SERVICES
+                         : (gQcs6490ExitGunyah ? QCS6490_GUNYAH_EXIT_SEC : QCS6490_GUNYAH_EXIT_NONE);
+  }
+
   return gQcs6490ExitGunyah;
 }
 

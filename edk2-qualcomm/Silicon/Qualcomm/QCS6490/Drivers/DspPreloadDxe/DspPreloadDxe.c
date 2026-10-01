@@ -8,13 +8,20 @@
   firmware started (it reads ready and handover in the DSP's SMP2P entry
   when it probes), which is how the Radxa Dragon Q6A runs its DSPs at EL2.
 
+  TrustZone only runs the DSPs it starts for a Gunyah guest: at EL2 it
+  accepts every PAS call, but the DSPs never run. So in a boot that runs the
+  OS at EL2, SEC keeps Gunyah until ExitBootServices (GunyahExitDxe) when
+  the DSPs are to be preloaded, and they are started from EL1.
+
   When the boot manager is about to boot (ReadyToBoot), and the DspPreload
   setting asks for it, each DSP of the board's device tree is started the
   way Linux's qcom_q6v5_pas starts it:
 
   1. The firmware named in its remoteproc node is read from the OS's root
      file system and checked (Firmware.c, Mdt.c).
-  2. At EL2, its apps SMMU stream is handed over in bypass (SmmuDxe).
+  2. At EL2, its apps SMMU stream is handed over in bypass (SmmuDxe); when
+     Gunyah leaves at ExitBootServices, that happens once it has left, for
+     the DSPs that run.
   3. AOP is told its image is loaded (QMP load_state), and its power rails,
      and the CDSP's path to memory, are voted at their highest level, as
      Linux's proxy votes do.
@@ -47,7 +54,9 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
+#include <Library/Qcs6490NvStatusLib.h>
 #include <Protocol/Cpu.h>
+#include <Protocol/Qcs6490GunyahExit.h>
 #include <Protocol/Qcs6490Smmu.h>
 
 #include "DspPreload.h"
@@ -139,7 +148,9 @@ STATIC CONST DSP_DESC  mDspDescs[] = {
 STATIC DSP                    mDsps[ARRAY_SIZE (mDspDescs)];
 STATIC EFI_CPU_ARCH_PROTOCOL  *mCpu;
 STATIC QCS6490_SMMU_PROTOCOL  *mSmmu;
-STATIC BOOLEAN                mAtEl2;
+STATIC BOOLEAN                mAtEl2;         // UEFI runs at EL2: Gunyah left in SEC
+STATIC BOOLEAN                mDeferredExit;  // Gunyah leaves at ExitBootServices
+STATIC BOOLEAN                mOsAtEl2;       // either: the OS runs at EL2
 STATIC BOOLEAN                mShmBridge;
 STATIC BOOLEAN                mShmBridgeTried;
 STATIC BOOLEAN                mDone;
@@ -892,9 +903,22 @@ DspRunning (
   IN OUT DSP  *Dsp
   )
 {
+  EFI_STATUS  Status;
+
   Dsp->State = DspStateRunning;
   DspProxyUnvote (Dsp);
   DspPrint ("DspPreload: %a running after %lu ms\n", Dsp->Desc->Name, DspElapsedMs (Dsp->StartedAt));
+
+  //
+  // Under Gunyah, SmmuDxe records the stream and sets it up once Gunyah has
+  // left.
+  //
+  if (mDeferredExit) {
+    Status = mSmmu->HandOverBypass (mSmmu, Dsp->Desc->StreamId, Dsp->Desc->StreamMask, Dsp->Desc->Name);
+    if (EFI_ERROR (Status)) {
+      DspPrint ("DspPreload: %a: SMMU stream not recorded for the OS: %r\n", Dsp->Desc->Name, Status);
+    }
+  }
 }
 
 /**
@@ -980,6 +1004,97 @@ DspWaitForDsps (
 }
 
 /**
+  Logs the SMP2P state of the DSPs that run, around the late Gunyah exit:
+  once before, and after it for a moment, to tell whether they survive it.
+  Runs with no boot services (QCS6490_GUNYAH_EXIT_NOTIFY).
+
+  @param[in]  Context  Unused.
+  @param[in]  Phase    Where the exit is.
+**/
+STATIC
+VOID
+EFIAPI
+DspOnGunyahExit (
+  IN VOID                       *Context,
+  IN QCS6490_GUNYAH_EXIT_PHASE  Phase
+  )
+{
+  UINTN        Index;
+  UINTN        Elapsed;
+  DSP          *Dsp;
+  UINT32       Bits;
+  EFI_STATUS   Status;
+  CONST CHAR8  *When;
+
+  When = (Phase == Qcs6490GunyahExitBefore) ? "before" : "after";
+
+  for (Index = 0; Index < ARRAY_SIZE (mDsps); Index++) {
+    Dsp = &mDsps[Index];
+    if (Dsp->State != DspStateRunning) {
+      continue;
+    }
+
+    //
+    // After the exit, watch for 200 ms: a DSP that loses its memory or its
+    // stream faults soon.
+    //
+    Elapsed = 0;
+    do {
+      Status = SmemReadSmp2pInbound (Dsp->Desc->SmemHost, Dsp->Desc->Smp2pItem, &Bits);
+      if (EFI_ERROR (Status) || ((Bits & SMP2P_BIT_FATAL) != 0) || (Phase == Qcs6490GunyahExitBefore)) {
+        break;
+      }
+
+      MicroSecondDelay (10000);
+      Elapsed += 10;
+    } while (Elapsed < 200);
+
+    if (EFI_ERROR (Status)) {
+      DspPrint ("DspPreload: %a the Gunyah exit: %a SMP2P not readable (%r)\n", When, Dsp->Desc->Name, Status);
+      continue;
+    }
+
+    DspPrint (
+      "DspPreload: %a the Gunyah exit: %a SMP2P 0x%x (%a)\n",
+      When,
+      Dsp->Desc->Name,
+      Bits,
+      ((Bits & SMP2P_BIT_FATAL) != 0) ? "crashed" : (DspBitsRunning (Bits) ? "running" : "not ready")
+      );
+    if ((Bits & SMP2P_BIT_FATAL) != 0) {
+      DspLogCrashReason (Dsp);
+    }
+  }
+}
+
+/**
+  Has the DSPs that run watched around the late Gunyah exit.
+**/
+STATIC
+VOID
+DspWatchGunyahExit (
+  VOID
+  )
+{
+  QCS6490_GUNYAH_EXIT_PROTOCOL  *GunyahExit;
+  UINTN                         Index;
+
+  for (Index = 0; Index < ARRAY_SIZE (mDsps); Index++) {
+    if (mDsps[Index].State == DspStateRunning) {
+      break;
+    }
+  }
+
+  if ((Index == ARRAY_SIZE (mDsps)) ||
+      EFI_ERROR (gBS->LocateProtocol (&gQcs6490GunyahExitProtocolGuid, NULL, (VOID **)&GunyahExit)))
+  {
+    return;
+  }
+
+  GunyahExit->RegisterNotify (GunyahExit, DspOnGunyahExit, NULL);
+}
+
+/**
   Preloads the DSPs the setting asks for.
 **/
 STATIC
@@ -997,15 +1112,26 @@ DspPreloadAll (
   VOID                        *Fdt;
 
   DspGetConfig (&Config);
-  mAtEl2 = (ArmReadCurrentEL () == AARCH64_EL2);
+  mAtEl2        = (ArmReadCurrentEL () == AARCH64_EL2);
+  mDeferredExit = Qcs6490GunyahExitDeferred ();
+  mOsAtEl2      = mAtEl2 || mDeferredExit;
 
   if (Config.Mode == QCS6490_DSP_PRELOAD_DISABLED) {
     DEBUG ((DEBUG_INFO, "DspPreload: disabled\n"));
     return;
   }
 
-  if ((Config.Mode != QCS6490_DSP_PRELOAD_ALWAYS) && !mAtEl2) {
+  if ((Config.Mode != QCS6490_DSP_PRELOAD_ALWAYS) && !mOsAtEl2) {
     DEBUG ((DEBUG_INFO, "DspPreload: at EL1 the OS starts the DSPs itself\n"));
+    return;
+  }
+
+  //
+  // Gunyah has gone already (SEC left it, e.g. with PcdGunyahLateExit 0):
+  // TrustZone would accept the PAS calls, but the DSPs would not run.
+  //
+  if ((Config.Mode != QCS6490_DSP_PRELOAD_ALWAYS) && mAtEl2) {
+    DspPrint ("DspPreload: Gunyah left before the DSPs could be started, skipped (Always forces it)\n");
     return;
   }
 
@@ -1015,7 +1141,7 @@ DspPreloadAll (
     return;
   }
 
-  if (mAtEl2) {
+  if (mOsAtEl2) {
     Status = gBS->LocateProtocol (&gQcs6490SmmuProtocolGuid, NULL, (VOID **)&mSmmu);
     if (EFI_ERROR (Status)) {
       DspPrint ("DspPreload: no SMMU protocol, the DSPs' streams cannot be handed over\n");
@@ -1033,7 +1159,11 @@ DspPreloadAll (
     DEBUG ((DEBUG_WARN, "DspPreload: no command DB, using this board's addresses\n"));
   }
 
-  DspPrint ("DspPreload: starting the DSPs at EL%u\n", mAtEl2 ? 2 : 1);
+  DspPrint (
+    "DspPreload: starting the DSPs at EL%u%a\n",
+    mAtEl2 ? 2 : 1,
+    mDeferredExit ? ", for an OS at EL2 (Gunyah leaves at ExitBootServices)" : ""
+    );
 
   Prepared = 0;
   for (Index = 0; Index < ARRAY_SIZE (mDsps); Index++) {
@@ -1077,6 +1207,10 @@ DspPreloadAll (
           );
         break;
     }
+  }
+
+  if (mDeferredExit) {
+    DspWatchGunyahExit ();
   }
 
   //

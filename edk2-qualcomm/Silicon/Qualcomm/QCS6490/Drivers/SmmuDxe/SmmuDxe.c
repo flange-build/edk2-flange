@@ -14,8 +14,10 @@
   After TrustZone has removed Gunyah, the SMMU is left in bypass and UEFI's
   own DMA needs nothing. A remote processor UEFI starts keeps running into
   the OS, though, and Linux enables the SMMU with unmatched streams faulting.
-  At EL2 this driver therefore offers QCS6490_SMMU_PROTOCOL, which hands such
-  a stream over to the OS in bypass.
+  When the OS runs at EL2 this driver therefore offers QCS6490_SMMU_PROTOCOL,
+  which hands such a stream over to the OS in bypass. When Gunyah leaves only
+  at ExitBootServices (GunyahExitDxe), the streams are recorded, and set up
+  once it has left: Gunyah wipes the entries it does not leave in bypass.
 
   The stream-to-context entries are put back at ExitBootServices, so the OS
   finds no stream matched that the boot firmware did not match. The display
@@ -34,6 +36,7 @@
 #include <Library/ArmLib.h>
 #include <Library/DebugLib.h>
 #include <Library/IoLib.h>
+#include <Library/Qcs6490NvStatusLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
 #include <Protocol/Qcs6490Smmu.h>
@@ -108,6 +111,15 @@ STATIC UINTN        mSavedEntryCount;
 
 STATIC BOOLEAN  mBypassCbUsed;
 STATIC UINTN    mBypassCb;
+
+//
+// Streams handed over while Gunyah is there, for after it has left.
+//
+#define SMMU_MAX_PENDING  4
+
+STATIC SMMU_STREAM  mPending[SMMU_MAX_PENDING];
+STATIC UINTN        mPendingCount;
+STATIC BOOLEAN      mDeferred;
 
 STATIC UINTN    mNumSmrg;
 STATIC UINTN    mGr1Base;
@@ -253,9 +265,8 @@ RestoreSmmu (
 }
 
 /**
-  Implements QCS6490_SMMU_PROTOCOL.HandOverBypass(), at EL2.
+  Makes a stream bypass the SMMU, now and for the OS, at EL2.
 
-  @param[in]  This      The protocol.
   @param[in]  StreamId  The stream ID.
   @param[in]  Mask      The stream ID bits to ignore.
   @param[in]  Name      A name for the log.
@@ -269,12 +280,10 @@ RestoreSmmu (
 **/
 STATIC
 EFI_STATUS
-EFIAPI
-HandOverBypass (
-  IN QCS6490_SMMU_PROTOCOL  *This,
-  IN UINT16                 StreamId,
-  IN UINT16                 Mask,
-  IN CONST CHAR8            *Name
+HandOverNow (
+  IN UINT16       StreamId,
+  IN UINT16       Mask,
+  IN CONST CHAR8  *Name
   )
 {
   UINTN    Index;
@@ -383,9 +392,54 @@ HandOverBypass (
 }
 
 /**
-  Logs the SMMU as TrustZone left it when it removed Gunyah: the global
-  configuration and the stream match entries in use, which Linux adopts as
-  bypass streams. Reads only.
+  Implements QCS6490_SMMU_PROTOCOL.HandOverBypass().
+
+  @param[in]  This      The protocol.
+  @param[in]  StreamId  The stream ID.
+  @param[in]  Mask      The stream ID bits to ignore.
+  @param[in]  Name      A name for the log.
+
+  @retval EFI_SUCCESS            The stream bypasses the SMMU, now and for the
+                                 OS, or will once Gunyah has left.
+  @retval EFI_ACCESS_DENIED      Another entry already matches the stream and
+                                 does not bypass.
+  @retval EFI_UNSUPPORTED        The SMMU uses extended stream IDs.
+  @retval EFI_OUT_OF_RESOURCES   No stream match entry is free.
+**/
+STATIC
+EFI_STATUS
+EFIAPI
+HandOverBypass (
+  IN QCS6490_SMMU_PROTOCOL  *This,
+  IN UINT16                 StreamId,
+  IN UINT16                 Mask,
+  IN CONST CHAR8            *Name
+  )
+{
+  //
+  // Gunyah owns the SMMU until it leaves at ExitBootServices.
+  //
+  if (mDeferred && (ArmReadCurrentEL () == AARCH64_EL1)) {
+    if (mPendingCount == ARRAY_SIZE (mPending)) {
+      return EFI_OUT_OF_RESOURCES;
+    }
+
+    mPending[mPendingCount].Id   = StreamId;
+    mPending[mPendingCount].Mask = Mask;
+    mPending[mPendingCount].Name = Name;
+    mPendingCount++;
+
+    DEBUG ((DEBUG_INFO, "%a: %a stream 0x%x mask 0x%x, for once Gunyah has left\n", __func__, Name, StreamId, Mask));
+    return EFI_SUCCESS;
+  }
+
+  return HandOverNow (StreamId, Mask, Name);
+}
+
+/**
+  Logs the SMMU as Gunyah left it when it went: the global configuration and
+  the stream match entries in use, which Linux adopts as bypass streams.
+  Reads only.
 
   @param[in]  Idr0  IDR0.
   @param[in]  Idr1  IDR1.
@@ -462,8 +516,50 @@ ReadGeometry (
   mExtendedIds = (MmioRead32 (APPS_SMMU_BASE + SMMU_SCR0) & SMMU_SCR0_EXIDENABLE) != 0;
 }
 
+/**
+  Implements QCS6490_SMMU_PROTOCOL.AfterGunyahExit().
+
+  @param[in]  This  The protocol.
+
+  @retval EFI_SUCCESS    Every recorded stream bypasses the SMMU.
+  @retval EFI_NOT_READY  Not at EL2.
+  @retval Other          A stream could not be set up.
+**/
+STATIC
+EFI_STATUS
+EFIAPI
+AfterGunyahExit (
+  IN QCS6490_SMMU_PROTOCOL  *This
+  )
+{
+  UINT32      Idr0;
+  UINT32      Idr1;
+  UINTN       Index;
+  EFI_STATUS  Status;
+  EFI_STATUS  Result;
+
+  if (ArmReadCurrentEL () != AARCH64_EL2) {
+    return EFI_NOT_READY;
+  }
+
+  ReadGeometry (&Idr0, &Idr1);
+  LogEl2State (Idr0, Idr1);
+
+  Result = EFI_SUCCESS;
+  for (Index = 0; Index < mPendingCount; Index++) {
+    Status = HandOverNow (mPending[Index].Id, mPending[Index].Mask, mPending[Index].Name);
+    if (EFI_ERROR (Status)) {
+      Result = Status;
+    }
+  }
+
+  mPendingCount = 0;
+  return Result;
+}
+
 STATIC QCS6490_SMMU_PROTOCOL  mSmmuProtocol = {
-  HandOverBypass
+  HandOverBypass,
+  AfterGunyahExit
 };
 
 /**
@@ -621,6 +717,25 @@ SmmuDxeInitialize (
   if (EFI_ERROR (Status)) {
     RestoreSmmu (NULL, NULL);
     return Status;
+  }
+
+  //
+  // The OS runs at EL2 once Gunyah has left at ExitBootServices: the remote
+  // processors UEFI starts are handed over then.
+  //
+  if (Qcs6490GunyahExitDeferred ()) {
+    DEBUG ((DEBUG_INFO, "%a: Gunyah leaves at ExitBootServices, streams handed over then\n", __func__));
+    mDeferred = TRUE;
+    Handle    = NULL;
+    Status    = gBS->InstallMultipleProtocolInterfaces (
+                       &Handle,
+                       &gQcs6490SmmuProtocolGuid,
+                       &mSmmuProtocol,
+                       NULL
+                       );
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
   }
 
   return InstallSmmuReady ();

@@ -32,6 +32,7 @@
 // loaded into DRAM.
 //
 BOOLEAN  gQcs6490ExitGunyah       = FixedPcdGetBool (PcdExitGunyah);
+BOOLEAN  gQcs6490DeferExitGunyah  = FALSE;
 INT32    gQcs6490ExitGunyahStatus = QCS6490_SMC_NOT_ISSUED;
 
 ARM_CORE_INFO  mPlatformCoreInfoTable[] = {
@@ -195,6 +196,15 @@ ArmPlatformInitialize (
       "QCS6490: TrustZone did not remove Gunyah (%d), running at EL1\n",
       gQcs6490ExitGunyahStatus
       );
+    return EFI_SUCCESS;
+  }
+
+  //
+  // Gunyah leaves at ExitBootServices (GunyahExitDxe). It takes one call per
+  // boot, so none may be made now.
+  //
+  if (gQcs6490DeferExitGunyah) {
+    Qcs6490Print ("QCS6490: Gunyah stays until ExitBootServices, running at EL1\n");
     return EFI_SUCCESS;
   }
 

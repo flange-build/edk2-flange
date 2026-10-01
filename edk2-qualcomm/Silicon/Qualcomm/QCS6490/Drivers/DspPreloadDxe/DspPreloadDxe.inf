@@ -45,6 +45,7 @@
   MemoryAllocationLib
   PcdLib
   PrintLib
+  Qcs6490NvStatusLib
   Qcs6490RpmhLib
   SerialPortLib
   TimerLib
@@ -59,6 +60,7 @@
   gEfiDtFixupProtocolGuid                       ## PRODUCES
   gEfiPartitionInfoProtocolGuid                 ## CONSUMES
   gEfiSimpleFileSystemProtocolGuid              ## CONSUMES
+  gQcs6490GunyahExitProtocolGuid                ## SOMETIMES_CONSUMES
   gQcs6490SmmuProtocolGuid                      ## SOMETIMES_CONSUMES
 
 [Guids]

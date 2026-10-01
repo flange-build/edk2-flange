@@ -34,6 +34,12 @@ extern CONST UINTN                 gQcs6490CarveoutCount;
 extern BOOLEAN  gQcs6490ExitGunyah;
 
 //
+// Whether Qcs6490EarlyInit() decided to leave Gunyah only at
+// ExitBootServices: then no call is made before (Gunyah takes one per boot).
+//
+extern BOOLEAN  gQcs6490DeferExitGunyah;
+
+//
 // What TrustZone returned to ArmPlatformPeiBootAction for the call to
 // remove Gunyah.
 //

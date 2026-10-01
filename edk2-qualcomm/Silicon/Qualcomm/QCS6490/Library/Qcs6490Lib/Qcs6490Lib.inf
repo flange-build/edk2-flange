@@ -76,6 +76,7 @@
   gQcomPlatformTokenSpaceGuid.PcdQcomUfsHcDxeBaseAddress
   gQcs6490TokenSpaceGuid.PcdExitGunyah
   gQcs6490TokenSpaceGuid.PcdFallbackSystemMemorySize
+  gQcs6490TokenSpaceGuid.PcdGunyahLateExit
   gQcs6490TokenSpaceGuid.PcdNvStorePartitionName
   gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun
 

@@ -52,12 +52,14 @@ typedef struct {
 // that attaches to them: Linux at EL2 cannot start them itself on these
 // boards. Stored as a QCS6490_DSP_PRELOAD_CONFIG in the variable below,
 // non-volatile and boot services only. Read by DspPreloadDxe at
-// ReadyToBoot.
+// ReadyToBoot, and by SEC: TrustZone runs the DSPs only when started under
+// Gunyah, so an EL2 boot that preloads them keeps Gunyah until
+// ExitBootServices.
 //
 #define QCS6490_DSP_PRELOAD_VARIABLE  L"DspPreload"
 
 //
-// Preload when UEFI runs at EL2. At EL1 the OS starts the DSPs itself.
+// Preload when the OS runs at EL2. At EL1 the OS starts the DSPs itself.
 //
 #define QCS6490_DSP_PRELOAD_AUTO  0
 

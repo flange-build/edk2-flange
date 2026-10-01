@@ -25,6 +25,7 @@
   ArmLib
   DebugLib
   IoLib
+  Qcs6490NvStatusLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint
 

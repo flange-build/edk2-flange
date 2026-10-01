@@ -208,6 +208,11 @@ READ_LOCK_STATUS   = TRUE
   INF Silicon/Qualcomm/QCS6490/Drivers/DspPreloadDxe/DspPreloadDxe.inf
 
   #
+  # Leaves Gunyah for EL2 at ExitBootServices, after the DSPs were started
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/GunyahExitDxe/GunyahExitDxe.inf
+
+  #
   # Splash screen logo, the same on every platform in this repository
   #
   INF edk2-common/Drivers/LogoDxe/LogoDxe.inf

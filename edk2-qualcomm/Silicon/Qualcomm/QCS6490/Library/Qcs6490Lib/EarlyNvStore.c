@@ -1,6 +1,7 @@
 /** @file
   The variable store as SEC sees it on QCS6490: the partition that holds it,
-  the firmware volume it is kept in, and the HypervisorMode variable.
+  the firmware volume it is kept in, and the HypervisorMode and DspPreload
+  variables.
 
   The partition is found by name in the GPT of its LUN, so that the store
   follows the partition table rather than a block number built in. The
@@ -289,20 +290,29 @@ Qcs6490EarlyCheckStore (
 }
 
 /**
-  Looks up the HypervisorMode variable in the store memory, which must
-  have passed Qcs6490EarlyCheckStore ().
+  Looks up a platform settings variable (vendor gQcs6490PlatformConfigGuid)
+  in the store memory, which must have passed Qcs6490EarlyCheckStore ().
 
   Walks the variables the way the variable driver does: 4-byte aligned
   records up to the end of the store or the first one without a start
   marker. A record that is being replaced (VAR_ADDED and
   VAR_IN_DELETED_TRANSITION) counts only when no added copy exists.
 
-  @return  Its value, QCS6490_HYPERVISOR_MODE_AUTO, _EL1 or _EL2, or
-           QCS6490_HYPERVISOR_SETTING_NONE if it is missing or invalid.
+  @param[in]   Name      The variable name.
+  @param[in]   NameSize  Its size in bytes, the terminating null included.
+  @param[out]  Data      Its value.
+  @param[in]   DataSize  The size it must have.
+
+  @retval TRUE   Found with that size; Data holds it.
+  @retval FALSE  Missing, or of another size.
 **/
-UINT8
-Qcs6490EarlyFindHypervisorMode (
-  VOID
+STATIC
+BOOLEAN
+FindPlatformVariable (
+  IN  CONST CHAR16  *Name,
+  IN  UINTN         NameSize,
+  OUT VOID          *Data,
+  IN  UINT32        DataSize
   )
 {
   EFI_FIRMWARE_VOLUME_HEADER     *FvHeader;
@@ -315,28 +325,23 @@ Qcs6490EarlyFindHypervisorMode (
   UINTN                          End;
   UINTN                          NamePtr;
   UINTN                          DataPtr;
-  UINT32                         NameSize;
-  UINT32                         DataSize;
+  UINT32                         RecordNameSize;
+  UINT32                         RecordDataSize;
   UINTN                          NamePad;
   UINT8                          State;
   EFI_GUID                       *VendorGuid;
-  UINT8                          Value;
-  UINT8                          Added;
-  UINT8                          InTransition;
-  BOOLEAN                        AddedFound;
-  BOOLEAN                        InTransitionFound;
+  UINTN                          Added;
+  UINTN                          InTransition;
 
   FvHeader      = (EFI_FIRMWARE_VOLUME_HEADER *)(UINTN)QCS6490_NVSTORE_BASE;
   Store         = (VARIABLE_STORE_HEADER *)(UINTN)(QCS6490_NVSTORE_BASE + FvHeader->HeaderLength);
   Authenticated = CompareGuid (&Store->Signature, &gEfiAuthenticatedVariableGuid);
   HeaderSize    = Authenticated ? sizeof (AUTHENTICATED_VARIABLE_HEADER) : sizeof (VARIABLE_HEADER);
 
-  Current           = HEADER_ALIGN ((UINTN)(Store + 1));
-  End               = (UINTN)Store + Store->Size;
-  Added             = QCS6490_HYPERVISOR_SETTING_NONE;
-  InTransition      = QCS6490_HYPERVISOR_SETTING_NONE;
-  AddedFound        = FALSE;
-  InTransitionFound = FALSE;
+  Current      = HEADER_ALIGN ((UINTN)(Store + 1));
+  End          = (UINTN)Store + Store->Size;
+  Added        = 0;
+  InTransition = 0;
 
   //
   // Every record takes at least a header, so this ends.
@@ -348,20 +353,20 @@ Qcs6490EarlyFindHypervisorMode (
         break;
       }
 
-      State      = AuthVariable->State;
-      NameSize   = AuthVariable->NameSize;
-      DataSize   = AuthVariable->DataSize;
-      VendorGuid = &AuthVariable->VendorGuid;
+      State          = AuthVariable->State;
+      RecordNameSize = AuthVariable->NameSize;
+      RecordDataSize = AuthVariable->DataSize;
+      VendorGuid     = &AuthVariable->VendorGuid;
     } else {
       Variable = (VARIABLE_HEADER *)Current;
       if (Variable->StartId != VARIABLE_DATA) {
         break;
       }
 
-      State      = Variable->State;
-      NameSize   = Variable->NameSize;
-      DataSize   = Variable->DataSize;
-      VendorGuid = &Variable->VendorGuid;
+      State          = Variable->State;
+      RecordNameSize = Variable->NameSize;
+      RecordDataSize = Variable->DataSize;
+      VendorGuid     = &Variable->VendorGuid;
     }
 
     //
@@ -369,47 +374,96 @@ Qcs6490EarlyFindHypervisorMode (
     // partly written one would.
     //
     NamePtr = Current + HeaderSize;
-    NamePad = GET_PAD_SIZE (NameSize);
-    if ((NameSize > End - NamePtr) ||
-        (NamePad > End - NamePtr - NameSize) ||
-        (DataSize > End - NamePtr - NameSize - NamePad))
+    NamePad = GET_PAD_SIZE (RecordNameSize);
+    if ((RecordNameSize > End - NamePtr) ||
+        (NamePad > End - NamePtr - RecordNameSize) ||
+        (RecordDataSize > End - NamePtr - RecordNameSize - NamePad))
     {
       break;
     }
 
-    DataPtr = NamePtr + NameSize + NamePad;
+    DataPtr = NamePtr + RecordNameSize + NamePad;
 
     if (((State == VAR_ADDED) || (State == (VAR_ADDED & VAR_IN_DELETED_TRANSITION))) &&
-        (NameSize == sizeof (QCS6490_HYPERVISOR_MODE_VARIABLE)) &&
+        (RecordNameSize == NameSize) &&
         CompareGuid (VendorGuid, &gQcs6490PlatformConfigGuid) &&
-        (CompareMem ((VOID *)NamePtr, QCS6490_HYPERVISOR_MODE_VARIABLE, NameSize) == 0))
+        (CompareMem ((VOID *)NamePtr, Name, NameSize) == 0))
     {
-      Value = (DataSize == sizeof (QCS6490_HYPERVISOR_CONFIG)) ? *(UINT8 *)DataPtr
-                                                               : QCS6490_HYPERVISOR_SETTING_NONE;
+      //
+      // Remember where the value is; 1 marks a copy of the wrong size.
+      //
       if (State == VAR_ADDED) {
-        Added      = Value;
-        AddedFound = TRUE;
+        Added = (RecordDataSize == DataSize) ? DataPtr : 1;
       } else {
-        InTransition      = Value;
-        InTransitionFound = TRUE;
+        InTransition = (RecordDataSize == DataSize) ? DataPtr : 1;
       }
     }
 
-    Current = HEADER_ALIGN (DataPtr + DataSize + GET_PAD_SIZE (DataSize));
+    Current = HEADER_ALIGN (DataPtr + RecordDataSize + GET_PAD_SIZE (RecordDataSize));
   }
 
-  if (!AddedFound && !InTransitionFound) {
+  if (Added == 0) {
+    Added = InTransition;
+  }
+
+  if (Added <= 1) {
+    return FALSE;
+  }
+
+  CopyMem (Data, (VOID *)Added, DataSize);
+  return TRUE;
+}
+
+UINT8
+Qcs6490EarlyFindHypervisorMode (
+  VOID
+  )
+{
+  QCS6490_HYPERVISOR_CONFIG  Config;
+
+  if (!FindPlatformVariable (
+         QCS6490_HYPERVISOR_MODE_VARIABLE,
+         sizeof (QCS6490_HYPERVISOR_MODE_VARIABLE),
+         &Config,
+         sizeof (Config)
+         ))
+  {
     return QCS6490_HYPERVISOR_SETTING_NONE;
   }
 
-  Value = AddedFound ? Added : InTransition;
-  if ((Value != QCS6490_HYPERVISOR_MODE_AUTO) &&
-      (Value != QCS6490_HYPERVISOR_MODE_EL1) &&
-      (Value != QCS6490_HYPERVISOR_MODE_EL2))
+  if ((Config.Mode != QCS6490_HYPERVISOR_MODE_AUTO) &&
+      (Config.Mode != QCS6490_HYPERVISOR_MODE_EL1) &&
+      (Config.Mode != QCS6490_HYPERVISOR_MODE_EL2))
   {
     Qcs6490Print ("QCS6490: variables: HypervisorMode is not valid, ignored\n");
     return QCS6490_HYPERVISOR_SETTING_NONE;
   }
 
-  return Value;
+  return Config.Mode;
+}
+
+BOOLEAN
+Qcs6490EarlyFindDspPreload (
+  OUT QCS6490_DSP_PRELOAD_CONFIG  *Config
+  )
+{
+  if (!FindPlatformVariable (
+         QCS6490_DSP_PRELOAD_VARIABLE,
+         sizeof (QCS6490_DSP_PRELOAD_VARIABLE),
+         Config,
+         sizeof (*Config)
+         ))
+  {
+    return FALSE;
+  }
+
+  if ((Config->Mode != QCS6490_DSP_PRELOAD_AUTO) &&
+      (Config->Mode != QCS6490_DSP_PRELOAD_DISABLED) &&
+      (Config->Mode != QCS6490_DSP_PRELOAD_ALWAYS))
+  {
+    Qcs6490Print ("QCS6490: variables: DspPreload is not valid, ignored\n");
+    return FALSE;
+  }
+
+  return TRUE;
 }

@@ -14,8 +14,10 @@
 
 #pragma once
 
-#include <Base.h>
+#include <Uefi/UefiBaseType.h>
 #include <Library/PcdLib.h>
+
+#include <Guid/Qcs6490PlatformConfig.h>
 
 #include <Qcs6490NvStore.h>
 
@@ -401,6 +403,20 @@ Qcs6490EarlyCheckStore (
 UINT8
 Qcs6490EarlyFindHypervisorMode (
   VOID
+  );
+
+/**
+  Looks up the DspPreload variable in the store memory, which must have
+  passed Qcs6490EarlyCheckStore ().
+
+  @param[out]  Config  Its value.
+
+  @retval TRUE   Found and valid.
+  @retval FALSE  Missing or invalid; Config is undefined.
+**/
+BOOLEAN
+Qcs6490EarlyFindDspPreload (
+  OUT QCS6490_DSP_PRELOAD_CONFIG  *Config
   );
 
 //

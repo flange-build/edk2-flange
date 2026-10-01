@@ -3,9 +3,10 @@
   master that keeps running after ExitBootServices, such as a remote
   processor UEFI started.
 
-  Installed by SmmuDxe when UEFI runs at EL2. Under Gunyah the hypervisor
-  owns the SMMU and sets up the streams of the remote processors itself, so
-  there is nothing to hand over.
+  Installed by SmmuDxe when the OS runs at EL2. Under Gunyah the hypervisor
+  owns the SMMU and sets up the streams of the remote processors itself; when
+  Gunyah leaves only at ExitBootServices (GunyahExitDxe), the streams are
+  recorded until then, and set up once it has left.
 
   Copyright (c) 2026, edk2-flange contributors.
 
@@ -34,7 +35,7 @@ typedef struct _QCS6490_SMMU_PROTOCOL QCS6490_SMMU_PROTOCOL;
   @param[in]  Name      A name for the log.
 
   @retval EFI_SUCCESS            The stream bypasses the SMMU, now and for the
-                                 OS.
+                                 OS (or once Gunyah has left).
   @retval EFI_ACCESS_DENIED      Another entry already matches the stream and
                                  does not bypass.
   @retval EFI_UNSUPPORTED        The SMMU uses extended stream IDs, which
@@ -50,8 +51,26 @@ EFI_STATUS
   IN CONST CHAR8            *Name
   );
 
+/**
+  Sets up the streams handed over while Gunyah was there, once it has left
+  at ExitBootServices: Gunyah wipes the stream match entries it does not
+  leave in bypass. Called by GunyahExitDxe at EL2, with no boot services.
+
+  @param[in]  This  The protocol.
+
+  @retval EFI_SUCCESS      Every recorded stream bypasses the SMMU.
+  @retval EFI_NOT_READY    Not at EL2.
+  @retval Other            A stream could not be set up (see HandOverBypass).
+**/
+typedef
+EFI_STATUS
+(EFIAPI *QCS6490_SMMU_AFTER_GUNYAH_EXIT)(
+  IN QCS6490_SMMU_PROTOCOL  *This
+  );
+
 struct _QCS6490_SMMU_PROTOCOL {
-  QCS6490_SMMU_HAND_OVER_BYPASS    HandOverBypass;
+  QCS6490_SMMU_HAND_OVER_BYPASS     HandOverBypass;
+  QCS6490_SMMU_AFTER_GUNYAH_EXIT    AfterGunyahExit;
 };
 
 extern EFI_GUID  gQcs6490SmmuProtocolGuid;
