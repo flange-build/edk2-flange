@@ -84,6 +84,13 @@
   gQcs6490TokenSpaceGuid.PcdPcie0PerstGpio|87
   gQcs6490TokenSpaceGuid.PcdPcie0PowerGpios|{ UINT16(86), UINT16(7), UINT16(136), UINT16(0xFFFF) }
 
+  #
+  # USB 2.0 Type-A port: usb_2. The vendor device tree drives GPIO119
+  # ("usb2_1p8_vreg") high for it.
+  #
+  gQcs6490TokenSpaceGuid.PcdUsbSecondaryHostEnable|TRUE
+  gQcs6490TokenSpaceGuid.PcdUsbSecondaryPowerGpios|{ UINT16(119), UINT16(0xFFFF) }
+
 [PcdsDynamicDefault.common]
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemManufacturer|L"Thundercomm"
   gQcomKodiakPlatformTokenSpaceGuid.PcdSystemSerialNumber|L"SN0000"

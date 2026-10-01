@@ -149,3 +149,11 @@
   gQcs6490TokenSpaceGuid.PcdPcie0PerstGpio|0|UINT16|0x00000041
   gQcs6490TokenSpaceGuid.PcdPcie0PowerGpios|{ UINT16(0xFFFF) }|VOID*|0x00000042
   gQcs6490TokenSpaceGuid.PcdPcie0PowerRampUs|50000|UINT32|0x00000043
+
+  #
+  # The secondary USB controller (usb_2, USB 2.0 only) in host mode
+  # (Dwc3HostDxe), off unless the board wires a port to it, and the GPIOs
+  # driven high for that port (a UINT16 list ending with 0xFFFF).
+  #
+  gQcs6490TokenSpaceGuid.PcdUsbSecondaryHostEnable|FALSE|BOOLEAN|0x00000050
+  gQcs6490TokenSpaceGuid.PcdUsbSecondaryPowerGpios|{ UINT16(0xFFFF) }|VOID*|0x00000051

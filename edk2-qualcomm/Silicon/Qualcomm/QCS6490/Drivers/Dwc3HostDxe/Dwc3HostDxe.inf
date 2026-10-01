@@ -1,0 +1,54 @@
+#/** @file
+#
+#  Brings up the secondary USB controller (usb_2, USB 2.0 only) in host
+#  mode and registers its xHCI for XhciDxe.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490Dwc3HostDxe
+  FILE_GUID                      = 5b2e8d41-7c93-4a1f-a6d0-3f9e2c714b58
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = Dwc3HostDxeInitialize
+
+[Sources]
+  Dwc3Host.h
+  Dwc3HostDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  IoLib
+  NonDiscoverableDeviceRegistrationLib
+  PcdLib
+  Qcs6490GccLib
+  Qcs6490RpmhLib
+  Qcs6490TlmmLib
+  TimerLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+
+[Protocols]
+  gEfiPciIoProtocolGuid                         ## SOMETIMES_CONSUMES
+
+[Guids]
+  gEfiEventExitBootServicesGuid                 ## CONSUMES ## Event
+
+[Pcd]
+  gQcs6490TokenSpaceGuid.PcdUsbSecondaryHostEnable
+  gQcs6490TokenSpaceGuid.PcdUsbSecondaryPowerGpios
+
+[Depex]
+  TRUE

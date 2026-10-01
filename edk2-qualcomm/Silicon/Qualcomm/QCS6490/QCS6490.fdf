@@ -221,6 +221,15 @@ READ_LOCK_STATUS   = TRUE
   INF EmbeddedPkg/Drivers/NonCoherentIoMmuDxe/NonCoherentIoMmuDxe.inf
 
   #
+  # USB host: the secondary DWC3 and xHCI controllers on PCIe
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/Dwc3HostDxe/Dwc3HostDxe.inf
+  INF MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
+
+  #
   # Splash screen logo, the same on every platform in this repository
   #
   INF edk2-common/Drivers/LogoDxe/LogoDxe.inf

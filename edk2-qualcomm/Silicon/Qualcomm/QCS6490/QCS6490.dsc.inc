@@ -126,6 +126,9 @@
   PciHostBridgeLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490PciHostBridgeLib/Qcs6490PciHostBridgeLib.inf
   PciSegmentLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490PciSegmentLib/Qcs6490PciSegmentLib.inf
 
+  # USB class drivers
+  UefiUsbLib|MdePkg/Library/UefiUsbLib/UefiUsbLib.inf
+
   # Device trees (DSP preload)
   FdtLib|MdePkg/Library/BaseFdtLib/BaseFdtLib.inf
 
@@ -280,6 +283,11 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdHiiOsRuntimeSupport|FALSE
 
   gEmbeddedTokenSpaceGuid.PcdPrePiProduceMemoryTypeInformationHob|TRUE
+
+  #
+  # No legacy (SMM) USB support to take xHCI ownership from.
+  #
+  gEfiMdeModulePkgTokenSpaceGuid.PcdTurnOffUsbLegacySupport|TRUE
 
 [PcdsFixedAtBuild.common]
   gEfiMdePkgTokenSpaceGuid.PcdMaximumUnicodeStringLength|1000000
@@ -695,3 +703,13 @@
     <PcdsFixedAtBuild>
       gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit|0xFFFFFFFF
   }
+
+  #
+  # USB host: the secondary DWC3 (usb_2) for boards that set
+  # PcdUsbSecondaryHostEnable, and xHCI controllers on PCIe.
+  #
+  Silicon/Qualcomm/QCS6490/Drivers/Dwc3HostDxe/Dwc3HostDxe.inf
+  MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
+  MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+  MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
+  MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf

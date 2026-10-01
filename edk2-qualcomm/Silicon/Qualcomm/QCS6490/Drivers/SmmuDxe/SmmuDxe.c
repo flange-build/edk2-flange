@@ -21,7 +21,9 @@
 
   The stream-to-context entries are put back at ExitBootServices, so the OS
   finds no stream matched that the boot firmware did not match. The display
-  stops fetching before that, in the BeforeExitBootServices group. The bypass
+  stops fetching before that, in the BeforeExitBootServices group, and
+  XhciDxe halts the USB host controllers in an ExitBootServices handler of
+  the same TPL that it creates later, so it runs first. The bypass
   context bank stays as it is: the hypervisor aborts a guest that gives a
   context bank the stage 2 type the bank reads back with, and Linux sets up
   the same context bank the same way anyway.
@@ -98,6 +100,7 @@ typedef struct {
 STATIC CONST SMMU_STREAM  mStreams[] = {
   { 0x80,   0x0,   "UFS"   },
   { 0x900,  0x402, "MDSS"  },
+  { 0xa0,   0x0,   "USB2"  },
   { 0x1c00, 0x1,   "PCIE0" },   // the root port and 01:00.0 (iommu-map)
 };
 
