@@ -1,0 +1,29 @@
+#/** @file
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = RubikPi3BoardDxe
+  FILE_GUID                      = 6bde23ad-fce7-4798-b023-a02549022600
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = BoardDxeInitialize
+
+[Sources]
+  BoardDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  IoLib
+  UefiDriverEntryPoint
+
+[Depex]
+  TRUE

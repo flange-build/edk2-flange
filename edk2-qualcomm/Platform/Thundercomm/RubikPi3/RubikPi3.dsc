@@ -80,3 +80,8 @@
   # DtPlatformDxe. GRUB's "devicetree" command replaces it.
   #
   $(PLATFORM_DIRECTORY)/DeviceTree/Mainline.inf
+
+  #
+  # LT9611 control lines
+  #
+  $(PLATFORM_DIRECTORY)/Drivers/BoardDxe/BoardDxe.inf

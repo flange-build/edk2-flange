@@ -200,6 +200,7 @@ edk2-qualcomm/
 ├── Platform/Thundercomm/RubikPi3/
 │   ├── RubikPi3.dsc             Board PCDs and device tree
 │   ├── RubikPi3.Modules.fdf.inc
+│   ├── Drivers/BoardDxe/        LT9611 control lines
 │   └── DeviceTree/Mainline.inf
 └── Silicon/Qualcomm/QCS6490/    Shared by QCS6490 boards
     ├── QCS6490.dec

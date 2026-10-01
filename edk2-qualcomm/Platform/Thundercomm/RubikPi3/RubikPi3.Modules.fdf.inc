@@ -6,3 +6,6 @@
 
   # Device Tree Support
   INF RuleOverride = DTB $(PLATFORM_DIRECTORY)/DeviceTree/Mainline.inf
+
+  # LT9611 control lines
+  INF $(PLATFORM_DIRECTORY)/Drivers/BoardDxe/BoardDxe.inf
