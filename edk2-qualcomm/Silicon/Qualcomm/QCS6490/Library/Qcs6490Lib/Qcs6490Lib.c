@@ -96,12 +96,14 @@ TzEl2Switch (
     ArmCallSmc (&Args);
 
     //
-    // A positive result means TZ was preempted: resume the call with the
-    // result as the function ID and the session TZ returned.
+    // QCOM_SCM_INTERRUPTED means TZ was preempted: resume the call with the
+    // result as the function ID and the session TZ returned. Gunyah, which
+    // takes the call, returns positive errors of its own (4 for a second
+    // call in a boot), which must not be issued as function IDs.
     //
     Function = Args.Arg0;
     Session  = Args.Arg6;
-  } while ((INT32)Args.Arg0 > 0);
+  } while (Args.Arg0 == QCOM_SCM_INTERRUPTED);
 
   return (INT32)Args.Arg0;
 }

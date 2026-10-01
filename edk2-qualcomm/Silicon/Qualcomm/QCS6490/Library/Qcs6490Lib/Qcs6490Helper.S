@@ -85,11 +85,11 @@ ASM_FUNC(ArmPlatformPeiBootAction)
   ldr   w4, =TZ_EL2_SWITCH_PARAM2_EXIT_GUNYAH
   mov   w5, wzr
   smc   #0
-// A positive result means TZ was preempted: resume the call with the result
+// QCOM_SCM_INTERRUPTED means TZ was preempted: resume the call with the result
 // as the function ID and the session TZ left in x6, like Qualcomm's own SCM
-// callers do.
-  cmp   w0, #0
-  b.gt  0b
+// callers do. Any other positive result is an error from Gunyah.
+  cmp   w0, #QCOM_SCM_INTERRUPTED
+  b.eq  0b
 
   ldr   x1, =ASM_PFX(gQcs6490ExitGunyahStatus)
   str   w0, [x1]
