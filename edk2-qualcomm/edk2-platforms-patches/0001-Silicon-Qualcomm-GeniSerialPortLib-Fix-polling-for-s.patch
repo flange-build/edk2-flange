@@ -1,0 +1,35 @@
+From 265c7777320bb06b492ce4d55241e1100314d384 Mon Sep 17 00:00:00 2001
+From: Eric Wu <a2wujinyuan@gmail.com>
+Date: Wed, 30 Sep 2026 00:47:39 +0800
+Subject: [PATCH] Silicon/Qualcomm: GeniSerialPortLib: Fix polling for set bits
+
+GeniSerialPollBit() compares the masked register value with the BOOLEAN
+it waits for, so waiting for a bit to become set only succeeds for bit 0.
+SerialPortRead() waits for GENI_M_SEC_IRQ_EN (bit 31) and for a non-zero
+RX FIFO word count this way. The first never matches, so every character
+read runs into the full 10 ms timeout, and the console drops input that
+arrives faster than 100 characters per second, a pasted line for
+instance.
+
+Compare whether the bit is set instead. Waiting for bits to clear keeps
+working as before.
+---
+ Silicon/Qualcomm/Library/GeniSerialPortLib/GeniSerialPortLib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Silicon/Qualcomm/Library/GeniSerialPortLib/GeniSerialPortLib.c b/Silicon/Qualcomm/Library/GeniSerialPortLib/GeniSerialPortLib.c
+index d041597763..c4cc2ba48e 100644
+--- a/Silicon/Qualcomm/Library/GeniSerialPortLib/GeniSerialPortLib.c
++++ b/Silicon/Qualcomm/Library/GeniSerialPortLib/GeniSerialPortLib.c
+@@ -33,7 +33,7 @@ GeniSerialPollBit (
+   TimeOutUs = 10000;
+ 
+   do {
+-    if ((MmioRead32 (Reg) & Bit) == Set) {
++    if (((MmioRead32 (Reg) & Bit) != 0) == Set) {
+       break;
+     }
+ 
+-- 
+2.43.0
+
