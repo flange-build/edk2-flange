@@ -23,6 +23,10 @@
   #
   devicetree/mainline/upstream/include
 
+[LibraryClasses]
+  ##  @libraryclass  Polled RPMh requests through DRV2 of the apps RSC.
+  Qcs6490RpmhLib|Include/Library/Qcs6490RpmhLib.h
+
 [Guids.common]
   gQcs6490TokenSpaceGuid = { 0xb1807de8, 0xa80e, 0x4fcd, { 0xba, 0x44, 0xfd, 0x98, 0xcb, 0x27, 0x9e, 0x4e } }
 

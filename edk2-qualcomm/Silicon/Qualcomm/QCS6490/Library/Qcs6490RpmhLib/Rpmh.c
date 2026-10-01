@@ -1,5 +1,5 @@
 /** @file
-  Polled RPMh requests through the apps RSC, for the display's regulator and
+  Polled RPMh requests through the apps RSC: regulator, power rail and
   interconnect votes.
 
   RPMh resources (PMIC regulators, bus clock managers) are voted through the
@@ -21,7 +21,7 @@
   command's RESP_DATA word. Linux does not use them. U-Boot sends them on
   the same RSC to read back regulator and interconnect votes (U-Boot
   drivers/soc/qcom/rpmh-rsc.c, "soc/qcom: rpmh: add RPMh read"). Here they
-  only serve the log.
+  serve logs and saving a vote to put back later.
 
   Copyright (c) 2026, edk2-flange contributors.
 
@@ -29,8 +29,12 @@
 
 **/
 
-#include "MdssDisplay.h"
-#include "MdssPower.h"
+#include <Uefi.h>
+#include <Library/BaseLib.h>
+#include <Library/DebugLib.h>
+#include <Library/IoLib.h>
+#include <Library/Qcs6490RpmhLib.h>
+#include <Library/TimerLib.h>
 
 //
 // DRV2 of the apps RSC (sc7280.dtsi apps_rsc "drv-2").
@@ -122,6 +126,39 @@ STATIC BOOLEAN  mRpmhReady;
 STATIC UINT32   mRpmhNcpt;
 
 /**
+  Polls a 32-bit register until it reads a value.
+
+  @param[in]  Address    The register.
+  @param[in]  Value      The value.
+  @param[in]  TimeoutUs  How long to wait, in microseconds.
+
+  @retval EFI_SUCCESS  The register reads the value.
+  @retval EFI_TIMEOUT  It does not.
+**/
+STATIC
+EFI_STATUS
+RpmhPoll (
+  IN UINTN   Address,
+  IN UINT32  Value,
+  IN UINTN   TimeoutUs
+  )
+{
+  UINTN  Elapsed;
+
+  for (Elapsed = 0; ; Elapsed++) {
+    if (MmioRead32 (Address) == Value) {
+      return EFI_SUCCESS;
+    }
+
+    if (Elapsed >= TimeoutUs) {
+      return EFI_TIMEOUT;
+    }
+
+    MicroSecondDelay (1);
+  }
+}
+
+/**
   Writes a TCS register and waits until it reads back the value, as the
   hardware requires for the control register (rpmh-rsc.c
   write_tcs_reg_sync).
@@ -142,7 +179,7 @@ RpmhWriteSync (
   EFI_STATUS  Status;
 
   MmioWrite32 (Address, Value);
-  Status = MmioPoll32 (Address, MAX_UINT32, Value, RPMH_SYNC_TIMEOUT_US);
+  Status = RpmhPoll (Address, Value, RPMH_SYNC_TIMEOUT_US);
   if (EFI_ERROR (Status)) {
     DEBUG ((
       DEBUG_ERROR,
@@ -350,7 +387,7 @@ RpmhWaitDone (
   @param[out]  Response  The read's answer; unused for writes.
 
   @retval EFI_SUCCESS  Done.
-  @retval Other        See PowerRpmhWrite().
+  @retval Other        See RpmhWrite().
 **/
 STATIC
 EFI_STATUS
@@ -368,7 +405,7 @@ RpmhSend (
   UINT32      Enable;
   UINTN       Waited;
 
-  Status = PowerRpmhInit ();
+  Status = RpmhInit ();
   if (EFI_ERROR (Status)) {
     return Status;
   }
@@ -454,13 +491,14 @@ RpmhSend (
 
 /**
   Checks that DRV2 of the apps RSC has the register layout and the active
-  TCSes this driver expects.
+  TCSes this library expects.
 
   @retval EFI_SUCCESS      Usable.
   @retval EFI_UNSUPPORTED  Unknown RSC version or TCS configuration.
 **/
 EFI_STATUS
-PowerRpmhInit (
+EFIAPI
+RpmhInit (
   VOID
   )
 {
@@ -524,7 +562,8 @@ PowerRpmhInit (
   @retval EFI_UNSUPPORTED        The RSC is not usable.
 **/
 EFI_STATUS
-PowerRpmhWrite (
+EFIAPI
+RpmhWrite (
   IN CONST RPMH_CMD  *Cmds,
   IN UINTN           Count
   )
@@ -562,10 +601,11 @@ PowerRpmhWrite (
   @param[out]  Data  The response.
 
   @retval EFI_SUCCESS  Read.
-  @retval Other        As for PowerRpmhWrite().
+  @retval Other        As for RpmhWrite().
 **/
 EFI_STATUS
-PowerRpmhRead (
+EFIAPI
+RpmhRead (
   IN  UINT32  Addr,
   OUT UINT32  *Data
   )
@@ -586,7 +626,8 @@ PowerRpmhRead (
   @param[in]  When  A label for the log lines.
 **/
 VOID
-PowerRpmhLogState (
+EFIAPI
+RpmhLogState (
   IN CONST CHAR8  *When
   )
 {

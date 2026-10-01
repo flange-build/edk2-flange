@@ -112,6 +112,9 @@
   # Qualcomm shared memory, for the RAM partition table
   QualcommSmemLib|Silicon/Qualcomm/QualcommSiliconPkg/Library/QualcommSmemLib/QualcommSmemLib.inf
 
+  # RPMh votes through the apps RSC (display)
+  Qcs6490RpmhLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490RpmhLib/Qcs6490RpmhLib.inf
+
   TimeBaseLib|EmbeddedPkg/Library/TimeBaseLib/TimeBaseLib.inf
   RealTimeClockLib|EmbeddedPkg/Library/VirtualRealTimeClockLib/VirtualRealTimeClockLib.inf
 

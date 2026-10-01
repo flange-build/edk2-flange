@@ -84,7 +84,7 @@ MmioPoll32 (
   );
 
 //
-// Power, clocks and diagnostics (Power.c, Rpmh.c, Diag.c)
+// Power, clocks and diagnostics (Power.c, Diag.c)
 //
 
 /**

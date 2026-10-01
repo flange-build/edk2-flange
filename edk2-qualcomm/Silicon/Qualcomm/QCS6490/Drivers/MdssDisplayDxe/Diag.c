@@ -257,5 +257,5 @@ DisplayLogEntryState (
       ));
   }
 
-  PowerRpmhLogState ("entry");
+  RpmhLogState ("entry");
 }

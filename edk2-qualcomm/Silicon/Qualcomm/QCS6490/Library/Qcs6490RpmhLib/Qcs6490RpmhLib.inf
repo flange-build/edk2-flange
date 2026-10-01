@@ -1,0 +1,30 @@
+#/** @file
+#
+#  Polled RPMh requests through DRV2 of the QCS6490 apps RSC.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490RpmhLib
+  FILE_GUID                      = bec46006-5358-408c-a90c-c539540b4acc
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = Qcs6490RpmhLib
+
+[Sources]
+  Rpmh.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  IoLib
+  TimerLib

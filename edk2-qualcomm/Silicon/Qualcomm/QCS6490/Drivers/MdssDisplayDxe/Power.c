@@ -651,7 +651,7 @@ PowerBcmVote (
   @param[in]  On  TRUE to vote, FALSE to leave no vote from this DRV.
 
   @retval EFI_SUCCESS  Voted.
-  @retval Other        From PowerRpmhWrite().
+  @retval Other        From RpmhWrite().
 **/
 STATIC
 EFI_STATUS
@@ -716,7 +716,7 @@ PowerVoteBandwidth (
   Cmds[1].Data = RPMH_BCM_CMD (TRUE, (Mm0X | Mm0Y) != 0, Mm0X, Mm0Y);
   Cmds[1].Wait = TRUE;
 
-  return PowerRpmhWrite (Cmds, ARRAY_SIZE (Cmds));
+  return RpmhWrite (Cmds, ARRAY_SIZE (Cmds));
 }
 
 /**
@@ -728,7 +728,7 @@ PowerVoteBandwidth (
   @param[in]  MilliVolts  The voltage.
 
   @retval EFI_SUCCESS  Voted.
-  @retval Other        From PowerRpmhWrite().
+  @retval Other        From RpmhWrite().
 **/
 STATIC
 EFI_STATUS
@@ -744,21 +744,21 @@ PowerVoteRail (
 
   Cmd.Addr = Addr + RPMH_VRM_VOLTAGE;
   Cmd.Data = MilliVolts;
-  Status   = PowerRpmhWrite (&Cmd, 1);
+  Status   = RpmhWrite (&Cmd, 1);
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
   Cmd.Addr = Addr + RPMH_VRM_MODE;
   Cmd.Data = RPMH_PMIC5_LDO_MODE_HPM;
-  Status   = PowerRpmhWrite (&Cmd, 1);
+  Status   = RpmhWrite (&Cmd, 1);
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
   Cmd.Addr = Addr + RPMH_VRM_ENABLE;
   Cmd.Data = 1;
-  return PowerRpmhWrite (&Cmd, 1);
+  return RpmhWrite (&Cmd, 1);
 }
 
 /**
@@ -782,7 +782,7 @@ PowerLogRpmhVotes (
   }
 
   for (Index = 0; Index < ARRAY_SIZE (mRpmhLogged); Index++) {
-    Status = PowerRpmhRead (mRpmhLogged[Index].Addr, &Data);
+    Status = RpmhRead (mRpmhLogged[Index].Addr, &Data);
     if (EFI_ERROR (Status)) {
       DEBUG ((
         DEBUG_ERROR,
@@ -915,7 +915,7 @@ DisplayPowerOn (
   // most likely on already; the votes make sure of the voltage, the enable
   // and high power mode.
   //
-  Status = PowerRpmhInit ();
+  Status = RpmhInit ();
   if (EFI_ERROR (Status)) {
     goto Fail;
   }
@@ -1073,5 +1073,5 @@ DisplayPowerOff (
   mPowerOn = FALSE;
 
   PowerDiagLogClocks ("off");
-  PowerRpmhLogState ("off");
+  RpmhLogState ("off");
 }

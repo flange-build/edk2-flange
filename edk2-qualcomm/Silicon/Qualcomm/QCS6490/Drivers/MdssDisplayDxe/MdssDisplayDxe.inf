@@ -32,7 +32,6 @@
   MdssDisplayDxe.c
   MdssPower.h
   Power.c
-  Rpmh.c
   Tlmm.c
 
 [Packages]
@@ -49,6 +48,7 @@
   IoLib
   MemoryAllocationLib
   PcdLib
+  Qcs6490RpmhLib
   TimerLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint
