@@ -133,13 +133,15 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf
 
   #
-  # FAT filesystem + GPT/MBR partitioning + UDF filesystem
+  # FAT filesystem + GPT/MBR partitioning + UDF filesystem, and ext4 for
+  # the DSP firmware on the OS's root file system
   #
   INF MdeModulePkg/Universal/Disk/DiskIoDxe/DiskIoDxe.inf
   INF MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf
   INF FatPkg/EnhancedFatDxe/Fat.inf
   INF MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
   INF MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+!include Features/Ext4Pkg/Ext4.fdf.inc
 
   #
   # UEFI application (Shell Embedded Boot Loader)
@@ -199,6 +201,11 @@ READ_LOCK_STATUS   = TRUE
   # Platform Configuration in the Device Manager (Hypervisor: EL1 or EL2)
   #
   INF Silicon/Qualcomm/QCS6490/Drivers/PlatformConfigDxe/PlatformConfigDxe.inf
+
+  #
+  # ADSP and CDSP started before the OS, for a kernel that attaches to them
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/DspPreloadDxe/DspPreloadDxe.inf
 
   #
   # Splash screen logo, the same on every platform in this repository

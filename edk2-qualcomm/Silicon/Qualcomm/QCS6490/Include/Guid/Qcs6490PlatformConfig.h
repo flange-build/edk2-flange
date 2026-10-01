@@ -47,6 +47,36 @@ typedef struct {
   UINT8    Mode;
 } QCS6490_HYPERVISOR_CONFIG;
 
+//
+// Whether UEFI starts the DSPs (ADSP and CDSP) before the OS, for a kernel
+// that attaches to them: Linux at EL2 cannot start them itself on these
+// boards. Stored as a QCS6490_DSP_PRELOAD_CONFIG in the variable below,
+// non-volatile and boot services only. Read by DspPreloadDxe at
+// ReadyToBoot.
+//
+#define QCS6490_DSP_PRELOAD_VARIABLE  L"DspPreload"
+
+//
+// Preload when UEFI runs at EL2. At EL1 the OS starts the DSPs itself.
+//
+#define QCS6490_DSP_PRELOAD_AUTO  0
+
+//
+// Never preload.
+//
+#define QCS6490_DSP_PRELOAD_DISABLED  1
+
+//
+// Preload at EL1 too, for a kernel that attaches there.
+//
+#define QCS6490_DSP_PRELOAD_ALWAYS  2
+
+typedef struct {
+  UINT8    Mode;
+  UINT8    Adsp;          // preload the ADSP
+  UINT8    Cdsp;          // preload the CDSP
+} QCS6490_DSP_PRELOAD_CONFIG;
+
 #ifndef VFRCOMPILE
 extern EFI_GUID  gQcs6490PlatformConfigGuid;
 #endif

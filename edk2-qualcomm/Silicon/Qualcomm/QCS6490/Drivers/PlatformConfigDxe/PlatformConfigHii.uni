@@ -45,6 +45,36 @@
                                        #language zh-Hans "EL2\wide（\narrowKVM\wide）\narrow"
 
 //
+// DSP preload setting
+//
+#string STR_DSP_PRELOAD_PROMPT         #language en-US   "DSP Preload"
+                                       #language zh-Hans "\wide预加载\narrow DSP"
+#string STR_DSP_PRELOAD_HELP           #language en-US   "Whether UEFI loads the ADSP and CDSP firmware and starts the DSPs before the OS.\n\n"
+                                                         "Auto: when the OS runs at EL2. On this board Linux at EL2 cannot start the DSPs itself; it attaches to the DSPs UEFI started, if the kernel supports that.\n\n"
+                                                         "Disabled: never. The OS starts the DSPs itself, which it can do at EL1.\n\n"
+                                                         "Always: at EL1 too, for a kernel that attaches there.\n\n"
+                                                         "The firmware is read from /usr/lib/firmware on the root file system, where Linux finds it."
+                                       #language zh-Hans "UEFI \wide是否在操作系统之前加载\narrow ADSP \wide和\narrow CDSP \wide固件并启动\narrow DSP\wide。\narrow\n\n"
+                                                         "\wide自动：操作系统运行在\narrow EL2 \wide时。本板在\narrow EL2 \wide下的\narrow Linux \wide无法自行启动\narrow DSP\wide，只能接管\narrow UEFI \wide已启动的\narrow DSP\wide（需内核支持）。\narrow\n\n"
+                                                         "\wide禁用：从不预加载，由操作系统自行启动\narrow DSP\wide，\narrowEL1 \wide下可以。\narrow\n\n"
+                                                         "\wide总是：在\narrow EL1 \wide下也预加载，适用于在\narrow EL1 \wide下接管\narrow DSP \wide的内核。\narrow\n\n"
+                                                         "\wide固件从根文件系统的\narrow /usr/lib/firmware \wide读取，与\narrow Linux \wide查找的位置相同。\narrow"
+#string STR_DSP_PRELOAD_AUTO           #language en-US   "Auto (at EL2)"
+                                       #language zh-Hans "\wide自动（\narrowEL2 \wide时）\narrow"
+#string STR_DSP_PRELOAD_DISABLED       #language en-US   "Disabled"
+                                       #language zh-Hans "\wide禁用\narrow"
+#string STR_DSP_PRELOAD_ALWAYS         #language en-US   "Always"
+                                       #language zh-Hans "\wide总是\narrow"
+#string STR_DSP_PRELOAD_ADSP_PROMPT    #language en-US   "ADSP"
+                                       #language zh-Hans "ADSP"
+#string STR_DSP_PRELOAD_ADSP_HELP      #language en-US   "Preload the audio DSP (ADSP)."
+                                       #language zh-Hans "\wide预加载音频\narrow DSP\wide（\narrowADSP\wide）。\narrow"
+#string STR_DSP_PRELOAD_CDSP_PROMPT    #language en-US   "CDSP"
+                                       #language zh-Hans "CDSP"
+#string STR_DSP_PRELOAD_CDSP_HELP      #language en-US   "Preload the compute DSP (CDSP)."
+                                       #language zh-Hans "\wide预加载计算\narrow DSP\wide（\narrowCDSP\wide）。\narrow"
+
+//
 // Status of this boot. The *_VALUE strings are set by PlatformConfigDxe.c.
 //
 #string STR_STATUS_SUBTITLE            #language en-US   "This Boot"

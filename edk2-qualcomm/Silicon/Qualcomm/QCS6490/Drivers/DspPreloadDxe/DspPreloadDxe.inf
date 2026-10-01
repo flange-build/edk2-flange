@@ -1,0 +1,76 @@
+#/** @file
+#
+#  Loads the ADSP and CDSP firmware and starts the DSPs before the OS, for a
+#  kernel that attaches to running DSPs.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490DspPreloadDxe
+  FILE_GUID                      = bbb55a13-3679-4282-b09c-1ef1074080f9
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = DspPreloadDxeInitialize
+
+[Sources]
+  CmdDb.c
+  DeviceTree.c
+  DspPreload.h
+  DspPreloadDxe.c
+  Firmware.c
+  Mdt.c
+  Qmp.c
+  Scm.c
+  Smem.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  QualcommSiliconPkg/QualcommSiliconPkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  ArmLib
+  ArmSmcLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  FdtLib
+  IoLib
+  MemoryAllocationLib
+  PcdLib
+  PrintLib
+  Qcs6490RpmhLib
+  SerialPortLib
+  TimerLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+  UefiRuntimeServicesTableLib
+
+[Protocols]
+  gEfiBlockIoProtocolGuid                       ## CONSUMES
+  gEfiCpuArchProtocolGuid                       ## CONSUMES
+  gEfiDtFixupProtocolGuid                       ## PRODUCES
+  gEfiPartitionInfoProtocolGuid                 ## CONSUMES
+  gEfiSimpleFileSystemProtocolGuid              ## CONSUMES
+  gQcs6490SmmuProtocolGuid                      ## SOMETIMES_CONSUMES
+
+[Guids]
+  gEfiEventReadyToBootGuid                      ## CONSUMES ## Event
+  gEfiFileInfoGuid                              ## CONSUMES
+  gFdtTableGuid                                 ## SOMETIMES_CONSUMES
+  gQcs6490PlatformConfigGuid                    ## CONSUMES ## Variable
+
+[Pcd]
+  gQcs6490TokenSpaceGuid.PcdDspFirmwarePartition
+  gQualcommSiliconPkgTokenSpaceGuid.PcdSmemBaseAddress
+  gQualcommSiliconPkgTokenSpaceGuid.PcdSmemSize
+
+[Depex]
+  TRUE

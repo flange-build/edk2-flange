@@ -112,8 +112,11 @@
   # Qualcomm shared memory, for the RAM partition table
   QualcommSmemLib|Silicon/Qualcomm/QualcommSiliconPkg/Library/QualcommSmemLib/QualcommSmemLib.inf
 
-  # RPMh votes through the apps RSC (display)
+  # RPMh votes through the apps RSC (display, DSP preload)
   Qcs6490RpmhLib|Silicon/Qualcomm/QCS6490/Library/Qcs6490RpmhLib/Qcs6490RpmhLib.inf
+
+  # Device trees (DSP preload)
+  FdtLib|MdePkg/Library/BaseFdtLib/BaseFdtLib.inf
 
   TimeBaseLib|EmbeddedPkg/Library/TimeBaseLib/TimeBaseLib.inf
   RealTimeClockLib|EmbeddedPkg/Library/VirtualRealTimeClockLib/VirtualRealTimeClockLib.inf
@@ -586,6 +589,12 @@
   MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
 
   #
+  # ext4, read only: the OS's root file system, where DspPreloadDxe reads the
+  # DSP firmware from
+  #
+!include Features/Ext4Pkg/Ext4.dsc.inc
+
+  #
   # Bds
   #
   MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf {
@@ -652,3 +661,8 @@
   # Platform Configuration in the Device Manager (Hypervisor: EL1 or EL2)
   #
   Silicon/Qualcomm/QCS6490/Drivers/PlatformConfigDxe/PlatformConfigDxe.inf
+
+  #
+  # ADSP and CDSP started before the OS, for a kernel that attaches to them
+  #
+  Silicon/Qualcomm/QCS6490/Drivers/DspPreloadDxe/DspPreloadDxe.inf

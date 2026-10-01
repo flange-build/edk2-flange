@@ -2,7 +2,7 @@
   Adds the Platform Configuration formset of the QCS6490 platforms to the
   Device Manager: the Hypervisor setting, which picks the exception level
   UEFI and the OS run at, and what the boot firmware and SEC made of it at
-  this boot.
+  this boot; and the DSP preload setting (DspPreloadDxe).
 
   The setting is the HypervisorMode variable (Guid/Qcs6490PlatformConfig.h).
   SEC reads it straight from the variable store on UFS before it decides
@@ -41,10 +41,20 @@
 #include "PlatformConfigDxe.h"
 
 //
-// HypervisorMode is non-volatile and boot services only, as the formset's
-// EFI variable store declares it.
+// The settings are non-volatile and boot services only, as the formset's
+// EFI variable stores declare them.
 //
-#define HYPERVISOR_MODE_ATTRIBUTES  (EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS)
+#define SETTING_ATTRIBUTES  (EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS)
+
+STATIC CONST QCS6490_HYPERVISOR_CONFIG  mDefaultHypervisorConfig = {
+  QCS6490_HYPERVISOR_MODE_AUTO
+};
+
+STATIC CONST QCS6490_DSP_PRELOAD_CONFIG  mDefaultDspPreloadConfig = {
+  QCS6490_DSP_PRELOAD_AUTO,
+  TRUE,
+  TRUE
+};
 
 //
 // xbl_config's /sw/uefi/uefiplat OsConfigTableSelection.
@@ -685,84 +695,93 @@ UpdateStatusStrings (
 }
 
 /**
-  Creates HypervisorMode, set to Auto, when it does not exist yet, so that
-  the setup browser can save the formset.
+  Creates a setting's variable with its default value when it does not exist
+  yet, so that the setup browser can save the formset.
 
   An existing variable keeps its value. One that config routing could not
   write back, because it has other attributes than the formset declares, is
   written again with the right attributes and its value; one of another size
-  is written again as Auto, which is also what SEC makes of it.
+  is written again with the default, which is also what its readers make of
+  it.
+
+  @param[in]  Name     The variable.
+  @param[in]  Size     The size of the setting.
+  @param[in]  Default  Its default value.
 **/
 STATIC
 VOID
-EnsureHypervisorMode (
-  VOID
+EnsureSetting (
+  IN CHAR16      *Name,
+  IN UINTN       Size,
+  IN CONST VOID  *Default
   )
 {
-  EFI_STATUS                 Status;
-  QCS6490_HYPERVISOR_CONFIG  Config;
-  UINTN                      Size;
-  UINT32                     Attributes;
+  EFI_STATUS  Status;
+  UINT8       Value[16];
+  UINTN       ReadSize;
+  UINT32      Attributes;
 
-  Size       = sizeof (Config);
+  ASSERT (Size <= sizeof (Value));
+
+  ReadSize   = Size;
   Attributes = 0;
   Status     = gRT->GetVariable (
-                      QCS6490_HYPERVISOR_MODE_VARIABLE,
+                      Name,
                       &gQcs6490PlatformConfigGuid,
                       &Attributes,
-                      &Size,
-                      &Config
+                      &ReadSize,
+                      Value
                       );
-  if (!EFI_ERROR (Status) && (Size == sizeof (Config)) && (Attributes == HYPERVISOR_MODE_ATTRIBUTES)) {
-    DEBUG ((DEBUG_INFO, "%a: HypervisorMode is %u\n", __func__, Config.Mode));
+  if (!EFI_ERROR (Status) && (ReadSize == Size) && (Attributes == SETTING_ATTRIBUTES)) {
+    DEBUG ((DEBUG_INFO, "%a: %s is there\n", __func__, Name));
     return;
   }
 
   if (Status == EFI_NOT_FOUND) {
-    Config.Mode = QCS6490_HYPERVISOR_MODE_AUTO;
+    CopyMem (Value, Default, Size);
   } else if (!EFI_ERROR (Status) || (Status == EFI_BUFFER_TOO_SMALL)) {
-    if (EFI_ERROR (Status) || (Size != sizeof (Config))) {
-      Config.Mode = QCS6490_HYPERVISOR_MODE_AUTO;
+    if (EFI_ERROR (Status) || (ReadSize != Size)) {
+      CopyMem (Value, Default, Size);
     }
 
     DEBUG ((
       DEBUG_WARN,
-      "%a: HypervisorMode has attributes 0x%x and %lu bytes, writing it again as %u\n",
+      "%a: %s has attributes 0x%x and %lu bytes, writing it again\n",
       __func__,
+      Name,
       Attributes,
-      (UINT64)Size,
-      Config.Mode
+      (UINT64)ReadSize
       ));
 
     Status = gRT->SetVariable (
-                    QCS6490_HYPERVISOR_MODE_VARIABLE,
+                    Name,
                     &gQcs6490PlatformConfigGuid,
                     0,
                     0,
                     NULL
                     );
     if (EFI_ERROR (Status)) {
-      DEBUG ((DEBUG_ERROR, "%a: cannot delete HypervisorMode: %r\n", __func__, Status));
+      DEBUG ((DEBUG_ERROR, "%a: cannot delete %s: %r\n", __func__, Name, Status));
       return;
     }
   } else {
-    DEBUG ((DEBUG_ERROR, "%a: cannot read HypervisorMode: %r\n", __func__, Status));
+    DEBUG ((DEBUG_ERROR, "%a: cannot read %s: %r\n", __func__, Name, Status));
     return;
   }
 
   Status = gRT->SetVariable (
-                  QCS6490_HYPERVISOR_MODE_VARIABLE,
+                  Name,
                   &gQcs6490PlatformConfigGuid,
-                  HYPERVISOR_MODE_ATTRIBUTES,
-                  sizeof (Config),
-                  &Config
+                  SETTING_ATTRIBUTES,
+                  Size,
+                  Value
                   );
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: cannot create HypervisorMode: %r\n", __func__, Status));
+    DEBUG ((DEBUG_ERROR, "%a: cannot create %s: %r\n", __func__, Name, Status));
     return;
   }
 
-  DEBUG ((DEBUG_INFO, "%a: HypervisorMode created as %u\n", __func__, Config.Mode));
+  DEBUG ((DEBUG_INFO, "%a: %s created\n", __func__, Name));
 }
 
 /**
@@ -815,8 +834,8 @@ InstallHiiPages (
 }
 
 /**
-  Entry point: makes sure HypervisorMode exists, adds the formset and fills
-  in its status lines.
+  Entry point: makes sure the settings' variables exist, adds the formset and
+  fills in its status lines.
 
   @param[in]  ImageHandle  The image handle.
   @param[in]  SystemTable  The system table.
@@ -834,7 +853,8 @@ PlatformConfigDxeInitialize (
   EFI_STATUS      Status;
   EFI_HII_HANDLE  HiiHandle;
 
-  EnsureHypervisorMode ();
+  EnsureSetting (QCS6490_HYPERVISOR_MODE_VARIABLE, sizeof (QCS6490_HYPERVISOR_CONFIG), &mDefaultHypervisorConfig);
+  EnsureSetting (QCS6490_DSP_PRELOAD_VARIABLE, sizeof (QCS6490_DSP_PRELOAD_CONFIG), &mDefaultDspPreloadConfig);
 
   Status = InstallHiiPages (&HiiHandle);
   if (EFI_ERROR (Status)) {

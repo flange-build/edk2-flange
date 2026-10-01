@@ -49,6 +49,12 @@
   #
   gQcs6490SmmuProtocolGuid = { 0xe7c57892, 0x299f, 0x4197, { 0xa2, 0xb0, 0x7b, 0xee, 0x2c, 0x46, 0xa4, 0x5d } }
 
+  #
+  # EFI_DT_FIXUP_PROTOCOL of the U-Boot EFI project, which GRUB calls on the
+  # device tree it loads. Include/Protocol/EfiDtFixup.h
+  #
+  gEfiDtFixupProtocolGuid = { 0xe617d64c, 0xfe08, 0x46da, { 0xf4, 0xdc, 0xbb, 0xd5, 0x87, 0x0c, 0x73, 0x00 } }
+
 [PcdsFixedAtBuild.common]
   #
   # The exception level when neither the HypervisorMode setting (EL1 or EL2)
@@ -101,3 +107,10 @@
   #
   gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun|0|UINT8|0x00000020
   gQcs6490TokenSpaceGuid.PcdNvStorePartitionName|L""|VOID*|0x00000021
+
+  #
+  # The GPT name of the partition holding the OS's root file system, where
+  # DspPreloadDxe reads the DSP firmware from (usr/lib/firmware), a UTF-16
+  # string.
+  #
+  gQcs6490TokenSpaceGuid.PcdDspFirmwarePartition|L"rootfs"|VOID*|0x00000030
