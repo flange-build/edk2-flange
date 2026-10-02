@@ -227,7 +227,14 @@ The uPD720201 has no EEPROM: Linux downloads its firmware from
 `renesas_usb_fw.mem` on the `usb_fw` partition (UFS LUN 3, ext4) at every
 boot. `RenesasXhciFwDxe` does the same before XhciDxe starts on it, reading
 the file through Ext4Dxe; the firmware is not part of this repository. The
-chip keeps it while it has power, so Linux may find it running.
+chip keeps it while it has power, so Linux finds it running and skips its
+download and the five-second wait before it.
+
+At ExitBootServices PCIe0 is quiesced: link training off and PERST#
+asserted, the supplies left on. Linux turns the clocks it does not use yet
+off seconds before it probes PCIe0, the link's reference clock among them;
+a uPD720201 left running on a live link through that came up at 2.5 GT/s
+only. Held in reset, it trains at 5 GT/s under Linux too.
 
 All USB DMA stays below 4 GiB, as the UFS's does: under Gunyah, usb_2 DMA
 to a buffer at the top of DRAM timed out. The SMMU lets both controllers'

@@ -3,8 +3,8 @@
   PciHostBridgeDxe, on boards that set PcdPcie0Enable.
 
   The root complex is brought up the first time PciHostBridgeDxe asks for
-  its root bridges (Pcie0Init.c). Without a link there is no root bridge,
-  and PciHostBridgeDxe unloads.
+  its root bridges (Pcie0Init.c), and quiesced at ExitBootServices. Without
+  a link there is no root bridge, and PciHostBridgeDxe unloads.
 
   The root bridge has segment 0 and buses 0 (the root port) and 1 (the
   device on the link); the 32-bit MEM window of pcie0's ranges, where the
@@ -21,10 +21,12 @@
 **/
 
 #include <PiDxe.h>
+#include <Guid/EventGroup.h>
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
 #include <Library/PcdLib.h>
 #include <Library/PciHostBridgeLib.h>
+#include <Library/UefiBootServicesTableLib.h>
 
 #include <Protocol/DevicePath.h>
 #include <Protocol/PciHostBridgeResourceAllocation.h>
@@ -87,8 +89,10 @@ CHAR16  *mPciHostBridgeLibAcpiAddressSpaceTypeStr[] = {
   L"Mem", L"I/O", L"Bus"
 };
 
-STATIC BOOLEAN  mPcie0Tried;
-STATIC BOOLEAN  mPcie0Up;
+STATIC BOOLEAN      mPcie0Tried;
+STATIC BOOLEAN      mPcie0Up;
+STATIC PCIE0_BOARD  mPcie0Board;
+STATIC EFI_EVENT    mPcie0ExitBootServicesEvent;
 
 /**
   Reads how the board wires PCIe0 from the PCDs. The power GPIO list is
@@ -140,6 +144,25 @@ Pcie0ReadBoard (
 }
 
 /**
+  Quiesces PCIe0 at ExitBootServices. The event is TPL_CALLBACK, so XhciDxe
+  (TPL_NOTIFY) has halted the controller behind the link by then.
+
+  @param[in]  Event    The event.
+  @param[in]  Context  Unused.
+**/
+STATIC
+VOID
+EFIAPI
+Pcie0OnExitBootServices (
+  IN EFI_EVENT  Event,
+  IN VOID       *Context
+  )
+{
+  Qcs6490Pcie0Quiesce (&mPcie0Board);
+  DEBUG ((DEBUG_INFO, "%a: PCIe0 quiesced: link training off, PERST# asserted\n", __func__));
+}
+
+/**
   Return all the root bridge instances in an array.
 
   PCIe0 is brought up on the first call; when it is not enabled for the
@@ -157,8 +180,7 @@ PciHostBridgeGetRootBridges (
   UINTN  *Count
   )
 {
-  PCIE0_BOARD  Board;
-  EFI_STATUS   Status;
+  EFI_STATUS  Status;
 
   if (!mPcie0Tried) {
     mPcie0Tried = TRUE;
@@ -166,9 +188,24 @@ PciHostBridgeGetRootBridges (
     if (!PcdGetBool (PcdPcie0Enable)) {
       DEBUG ((DEBUG_INFO, "%a: PCIe0 is not enabled on this board\n", __func__));
     } else {
-      Status = Pcie0ReadBoard (&Board);
+      Status = Pcie0ReadBoard (&mPcie0Board);
       if (!EFI_ERROR (Status)) {
-        Status = Qcs6490Pcie0Init (&Board);
+        Status = Qcs6490Pcie0Init (&mPcie0Board);
+      }
+
+      if (!EFI_ERROR (Status)) {
+        Status = gBS->CreateEventEx (
+                        EVT_NOTIFY_SIGNAL,
+                        TPL_CALLBACK,
+                        Pcie0OnExitBootServices,
+                        NULL,
+                        &gEfiEventExitBootServicesGuid,
+                        &mPcie0ExitBootServicesEvent
+                        );
+        if (EFI_ERROR (Status)) {
+          DEBUG ((DEBUG_ERROR, "%a: ExitBootServices event: %r\n", __func__, Status));
+          Qcs6490Pcie0Quiesce (&mPcie0Board);
+        }
       }
 
       mPcie0Up = !EFI_ERROR (Status);
