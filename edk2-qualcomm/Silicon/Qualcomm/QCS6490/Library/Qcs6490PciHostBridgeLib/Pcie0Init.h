@@ -214,4 +214,16 @@ Qcs6490Pcie0Init (
   IN CONST PCIE0_BOARD  *Board
   );
 
+/**
+  Quiesces PCIe0 for the OS at ExitBootServices: link training off and
+  PERST# asserted, as after a failed bring-up. The supplies stay on, so the
+  devices on the link keep what they hold (the uPD720201 its firmware).
+
+  @param[in]  Board  How the board wires PCIe0.
+**/
+VOID
+Qcs6490Pcie0Quiesce (
+  IN CONST PCIE0_BOARD  *Board
+  );
+
 #endif // PCIE0_INIT_H_

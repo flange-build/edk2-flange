@@ -26,9 +26,15 @@
   range PciHostBridgeDxe gets; it has no IO window, and IO decode is not
   enabled; ASPM stays off (Linux turns it on after enumeration).
 
-  Nothing is undone at ExitBootServices: XhciDxe halts the controller behind
-  the link, and Linux resets the controller, the PHY and the endpoint
-  (both block resets, PERST#) before it uses them.
+  At ExitBootServices, after XhciDxe has halted the controller behind the
+  link, link training is turned off and PERST# asserted (Qcs6490Pcie0Quiesce);
+  the supplies stay on. Linux resets the controller, the PHY and the endpoint
+  (both block resets, PERST#) before it uses them, but it turns the clocks
+  it does not use yet off first (clk_disable_unused, seconds before
+  pcie-qcom probes), the link's reference clock among them. A uPD720201
+  whose firmware runs, left on a live link through that, came up at
+  2.5 GT/s only after Linux's PERST#; held in reset meanwhile, it trains at
+  5 GT/s and keeps its firmware.
 
   Copyright (c) 2026, edk2-flange contributors.
 
@@ -1374,4 +1380,19 @@ Fail:
   Pcie0Abort (Board, ParfAccessible);
   DEBUG ((DEBUG_ERROR, "%a: PCIe0 bring-up failed: %r; PERST# left asserted\n", __func__, Status));
   return Status;
+}
+
+/**
+  Quiesces PCIe0 for the OS at ExitBootServices: link training off and
+  PERST# asserted, as after a failed bring-up. The supplies stay on, so the
+  devices on the link keep what they hold (the uPD720201 its firmware).
+
+  @param[in]  Board  How the board wires PCIe0.
+**/
+VOID
+Qcs6490Pcie0Quiesce (
+  IN CONST PCIE0_BOARD  *Board
+  )
+{
+  Pcie0Abort (Board, Qcs6490Pcie0Accessible ());
 }

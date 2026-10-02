@@ -38,6 +38,10 @@
   Qcs6490RpmhLib
   Qcs6490TlmmLib
   TimerLib
+  UefiBootServicesTableLib
+
+[Guids]
+  gEfiEventExitBootServicesGuid                 ## CONSUMES ## Event
 
 [Pcd]
   gQcs6490TokenSpaceGuid.PcdPcie0Enable          ## CONSUMES
