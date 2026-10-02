@@ -1,0 +1,13 @@
+// /** @file
+// The flange logo, white and orange for the black boot screen, in the
+// widths LogoDxe chooses from. Tools/GenLogo.py makes them.
+//
+// Copyright (c) 2026, edk2-flange contributors.
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+#image IMG_LOGO_1152 Logo-1152.bmp
+#image IMG_LOGO_768  Logo-768.bmp
+#image IMG_LOGO_384  Logo-384.bmp

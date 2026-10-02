@@ -1,0 +1,46 @@
+#/** @file
+#
+#  PCI Host Bridge Library for the QCS6490: brings PCIe0 up and describes it
+#  as the root bridge of PciHostBridgeDxe.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490PciHostBridgeLib
+  FILE_GUID                      = 3d0a1f5e-8c27-4b8e-9f43-2a6c51e0d7a9
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciHostBridgeLib|DXE_DRIVER
+
+[Sources]
+  Pcie0Init.c
+  Pcie0Init.h
+  Pcie0Phy.c
+  PciHostBridgeLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  IoLib
+  PcdLib
+  PciSegmentLib
+  Qcs6490GccLib
+  Qcs6490RpmhLib
+  Qcs6490TlmmLib
+  TimerLib
+
+[Pcd]
+  gQcs6490TokenSpaceGuid.PcdPcie0Enable          ## CONSUMES
+  gQcs6490TokenSpaceGuid.PcdPcie0PerstGpio       ## CONSUMES
+  gQcs6490TokenSpaceGuid.PcdPcie0PowerGpios      ## CONSUMES
+  gQcs6490TokenSpaceGuid.PcdPcie0PowerRampUs     ## CONSUMES

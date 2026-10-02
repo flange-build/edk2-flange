@@ -576,6 +576,11 @@ FspiLib|Silicon/Rockchip/Library/FspiLib/FspiLib.inf
   MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe.inf
   MdeModulePkg/Universal/Console/TerminalDxe/TerminalDxe.inf
   Silicon/Rockchip/Drivers/CjkFontDxe/CjkFontDxe.inf
+
+  #
+  # Splash screen logo, the same on every platform in this repository
+  #
+  edk2-common/Drivers/LogoDxe/LogoDxe.inf
   MdeModulePkg/Universal/SerialDxe/SerialDxe.inf
 
   #

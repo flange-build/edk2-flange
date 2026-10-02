@@ -1,0 +1,286 @@
+#
+#  Copyright (c) 2019, Linaro Limited. All rights reserved.
+#  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#  Shared by the QCS6490 boards. Derived from the upstream edk2-platforms
+#  RB3 Gen 2 port (Platform/Qualcomm/RB3Gen2/RB3Gen2.fdf). A board adds its
+#  own modules, the device tree among them, through
+#  $(PLATFORM_DIRECTORY)/$(PLATFORM_NAME).Modules.fdf.inc.
+#
+
+################################################################################
+#
+# FD Section for the UEFI image XBL loads
+#
+# XBL loads the ELF build.sh wraps around this FD at its base address and
+# enters it there; build.sh takes the ELF entry point from BaseAddress below.
+# XBL of the BOOT.MXF.1.0.c1 firmware only loads UEFI into
+# 0x9FB00000-0xA0A00000, and the stock Qualcomm UEFI occupies
+# 0x9FB00000-0xA0000000 ("UEFI FD" in its uefiplat.cfg). The FD takes
+# 0x9FC00000-0x9FF00000 of that, starting where the upstream RB3 Gen 2 port
+# does, and the SEC stack sits right above it at PcdCPUCoresStackBase.
+#
+################################################################################
+
+[FD.QCS6490_EFI]
+BaseAddress   = 0x9fc00000|gArmTokenSpaceGuid.PcdFdBaseAddress
+Size          = 0x00300000|gArmTokenSpaceGuid.PcdFdSize
+ErasePolarity = 1
+BlockSize     = 0x00001000
+NumBlocks     = 0x300
+
+################################################################################
+#
+# Following are lists of FD Region layout which correspond to the locations of different
+# images within the flash device.
+#
+# Regions must be defined in ascending order and may not overlap.
+#
+# A Layout Region start with a eight digit hex offset (leading "0x" required) followed by
+# the pipe "|" character, followed by the size of the region, also in hex with the leading
+# "0x" characters. Like:
+# Offset|Size
+# PcdOffsetCName|PcdSizeCName
+# RegionType <FV, DATA, or FILE>
+#
+################################################################################
+
+0x00000000|0x00300000
+gArmTokenSpaceGuid.PcdFvBaseAddress|gArmTokenSpaceGuid.PcdFvSize
+FV = FVMAIN_COMPACT
+
+################################################################################
+#
+# FV Section
+#
+# [FV] section is used to define what components or modules are placed within a flash
+# device file.  This section also defines order the components and modules are positioned
+# within the image.  The [FV] section consists of define statements, set statements and
+# module statements.
+#
+################################################################################
+
+[FV.FvMain]
+FvNameGuid         = 00a24d78-196f-4add-bda5-5b936738d293
+BlockSize          = 0x40
+NumBlocks          = 0         # This FV gets compressed so make it just big enough
+FvAlignment        = 16        # FV alignment and FV attributes setting.
+ERASE_POLARITY     = 1
+MEMORY_MAPPED      = TRUE
+STICKY_WRITE       = TRUE
+LOCK_CAP           = TRUE
+LOCK_STATUS        = TRUE
+WRITE_DISABLED_CAP = TRUE
+WRITE_ENABLED_CAP  = TRUE
+WRITE_STATUS       = TRUE
+WRITE_LOCK_CAP     = TRUE
+WRITE_LOCK_STATUS  = TRUE
+READ_DISABLED_CAP  = TRUE
+READ_ENABLED_CAP   = TRUE
+READ_STATUS        = TRUE
+READ_LOCK_CAP      = TRUE
+READ_LOCK_STATUS   = TRUE
+
+  INF MdeModulePkg/Core/Dxe/DxeMain.inf
+  INF MdeModulePkg/Universal/PCD/Dxe/Pcd.inf
+
+  #
+  # PI DXE Drivers producing Architectural Protocols (EFI Services)
+  #
+  INF ArmPkg/Drivers/CpuDxe/CpuDxe.inf
+  INF MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf
+  INF MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf
+  INF MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf
+  #
+  # UEFI variables kept on UFS: the FVB over the store SEC loaded, then FTW
+  # (it must come before the variable driver, to finish an interrupted write
+  # first), then the variable driver
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/NvStoreFvbDxe/NvStoreFvbDxe.inf
+  INF MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteDxe.inf
+  INF MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf
+  INF MdeModulePkg/Universal/MonotonicCounterRuntimeDxe/MonotonicCounterRuntimeDxe.inf
+  INF MdeModulePkg/Universal/ResetSystemRuntimeDxe/ResetSystemRuntimeDxe.inf
+  INF EmbeddedPkg/RealTimeClockRuntimeDxe/RealTimeClockRuntimeDxe.inf
+  INF EmbeddedPkg/MetronomeDxe/MetronomeDxe.inf
+  INF MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
+
+  #
+  # Multiple Console IO support
+  #
+  INF MdeModulePkg/Universal/Console/ConPlatformDxe/ConPlatformDxe.inf
+  INF MdeModulePkg/Universal/Console/ConSplitterDxe/ConSplitterDxe.inf
+  INF MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe.inf
+  INF MdeModulePkg/Universal/Console/TerminalDxe/TerminalDxe.inf
+
+  #
+  # Hanzi for the Simplified Chinese menus on HDMI, shared with the Rockchip
+  # platforms. The OFL wants its notice to travel with every copy of the
+  # font, so the glyphs come with their license, readable in the image.
+  #
+  INF edk2-rockchip/Silicon/Rockchip/Drivers/CjkFontDxe/CjkFontDxe.inf
+  FILE FREEFORM = 580524bf-cb28-471c-baa9-816ebde2a9b3 {
+    SECTION UI = "UnifontLicense"
+    SECTION RAW = edk2-rockchip/Silicon/Rockchip/Drivers/CjkFontDxe/Unifont-OFL.txt
+  }
+  INF MdeModulePkg/Universal/SerialDxe/SerialDxe.inf
+
+  INF ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf
+  INF ArmPkg/Drivers/TimerDxe/TimerDxe.inf
+  INF MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf
+
+  #
+  # FAT filesystem + GPT/MBR partitioning + UDF filesystem, and ext4 for
+  # the DSP firmware on the OS's root file system
+  #
+  INF MdeModulePkg/Universal/Disk/DiskIoDxe/DiskIoDxe.inf
+  INF MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf
+  INF FatPkg/EnhancedFatDxe/Fat.inf
+  INF MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+  INF MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+!include Features/Ext4Pkg/Ext4.fdf.inc
+
+  #
+  # UEFI application (Shell Embedded Boot Loader)
+  #
+  INF ShellPkg/Application/Shell/Shell.inf
+
+  #
+  # Bds
+  #
+  INF MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf
+  INF MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+  INF MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
+  INF MdeModulePkg/Universal/DriverHealthManagerDxe/DriverHealthManagerDxe.inf
+  INF MdeModulePkg/Universal/BdsDxe/BdsDxe.inf
+  INF MdeModulePkg/Universal/BootManagerPolicyDxe/BootManagerPolicyDxe.inf
+  INF MdeModulePkg/Application/UiApp/UiApp.inf
+
+  #
+  # DTB support
+  #
+  INF EmbeddedPkg/Drivers/DtPlatformDxe/DtPlatformDxe.inf
+
+  #
+  # Generic non-discoverable pcie used for many soc devices
+  #
+  INF MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
+
+  #
+  # Ufs, and the SMMU set up for its DMA under Gunyah
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/SmmuDxe/SmmuDxe.inf
+  INF Silicon/Qualcomm/Drivers/QcomUfsHcDxe/QcomUfsHcDxe.inf
+  INF MdeModulePkg/Bus/Pci/UfsPciHcDxe/UfsPciHcDxe.inf
+  INF MdeModulePkg/Bus/Ufs/UfsPassThruDxe/UfsPassThruDxe.inf
+  INF MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
+  INF MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
+
+  #
+  # SMBIOS support
+  #
+  INF ArmPkg/Universal/Smbios/ProcessorSubClassDxe/ProcessorSubClassDxe.inf
+  INF ArmPkg/Universal/Smbios/SmbiosMiscDxe/SmbiosMiscDxe.inf
+  INF MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf
+  INF Silicon/Qualcomm/QCS6490/Drivers/SmbiosMemoryDxe/SmbiosMemoryDxe.inf
+
+  #
+  # QUP serial engine firmware for the OS
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/QupFwDxe/QupFwDxe.inf
+
+  #
+  # HDMI through an LT9611 on DSI0, for boards that set PcdDisplayEnable
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/MdssDisplayDxe/MdssDisplayDxe.inf
+
+  #
+  # Platform Configuration in the Device Manager (Hypervisor: EL1 or EL2)
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/PlatformConfigDxe/PlatformConfigDxe.inf
+
+  #
+  # ADSP and CDSP started before the OS, for a kernel that attaches to them
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/DspPreloadDxe/DspPreloadDxe.inf
+
+  #
+  # Leaves Gunyah for EL2 at ExitBootServices, after the DSPs were started
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/GunyahExitDxe/GunyahExitDxe.inf
+
+  #
+  # PCIe0, for boards that set PcdPcie0Enable
+  #
+  INF ArmPkg/Drivers/ArmPciCpuIo2Dxe/ArmPciCpuIo2Dxe.inf
+  INF MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf
+  INF MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe.inf
+  INF EmbeddedPkg/Drivers/NonCoherentIoMmuDxe/NonCoherentIoMmuDxe.inf
+
+  #
+  # USB host: the secondary DWC3 and xHCI controllers on PCIe (Renesas
+  # uPD720201/2 firmware loaded from a partition)
+  #
+  INF Silicon/Qualcomm/QCS6490/Drivers/Dwc3HostDxe/Dwc3HostDxe.inf
+  INF Silicon/Qualcomm/QCS6490/Drivers/RenesasXhciFwDxe/RenesasXhciFwDxe.inf
+  INF MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
+
+  #
+  # Splash screen logo, the same on every platform in this repository
+  #
+  INF edk2-common/Drivers/LogoDxe/LogoDxe.inf
+
+  #
+  # Ramdisk support
+  #
+  INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+
+  #
+  # Board modules, the device tree among them
+  #
+!include $(PLATFORM_DIRECTORY)/$(PLATFORM_NAME).Modules.fdf.inc
+
+[FV.FVMAIN_COMPACT]
+FvAlignment        = 16
+ERASE_POLARITY     = 1
+MEMORY_MAPPED      = TRUE
+STICKY_WRITE       = TRUE
+LOCK_CAP           = TRUE
+LOCK_STATUS        = TRUE
+WRITE_DISABLED_CAP = TRUE
+WRITE_ENABLED_CAP  = TRUE
+WRITE_STATUS       = TRUE
+WRITE_LOCK_CAP     = TRUE
+WRITE_LOCK_STATUS  = TRUE
+READ_DISABLED_CAP  = TRUE
+READ_ENABLED_CAP   = TRUE
+READ_STATUS        = TRUE
+READ_LOCK_CAP      = TRUE
+READ_LOCK_STATUS   = TRUE
+
+  INF ArmPlatformPkg/Sec/Sec.inf
+  INF MdeModulePkg/Core/Pei/PeiMain.inf
+  INF ArmPlatformPkg/PlatformPei/PlatformPeim.inf
+  INF ArmPlatformPkg/MemoryInitPei/MemoryInitPeim.inf
+  INF ArmPkg/Drivers/CpuPei/CpuPei.inf
+  INF MdeModulePkg/Universal/PCD/Pei/Pcd.inf
+  INF MdeModulePkg/Core/DxeIplPeim/DxeIpl.inf
+
+  FILE FV_IMAGE = 9E21FD93-9C72-4c15-8C4B-E77F1DB2D792 {
+    SECTION GUIDED EE4E5898-3914-4259-9D6E-DC7BD79403CF PROCESSING_REQUIRED = TRUE {
+      SECTION FV_IMAGE = FVMAIN
+    }
+  }
+
+!include ArmVirtPkg/ArmVirtRules.fdf.inc
+
+[Rule.Common.USER_DEFINED.DTB]
+  FILE FREEFORM = $(NAMED_GUID) {
+    RAW BIN                |.dtb
+  }

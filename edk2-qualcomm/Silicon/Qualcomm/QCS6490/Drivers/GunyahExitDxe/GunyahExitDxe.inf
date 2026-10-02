@@ -1,0 +1,50 @@
+#/** @file
+#
+#  Leaves Gunyah for EL2 once the OS loader's ExitBootServices succeeded, in
+#  boots that run the OS at EL2 but UEFI as a Gunyah guest.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490GunyahExitDxe
+  FILE_GUID                      = d8361807-10fb-4a7f-a6c2-0efe3759f689
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = GunyahExitDxeInitialize
+
+[Sources]
+  GunyahExit.h
+  GunyahExitDxe.c
+
+[Sources.AARCH64]
+  AArch64/GunyahExit.S
+
+[Packages]
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseMemoryLib
+  DebugLib
+  PrintLib
+  Qcs6490NvStatusLib
+  SerialPortLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+
+[Protocols]
+  gQcs6490GunyahExitProtocolGuid    ## PRODUCES
+  gQcs6490SmmuProtocolGuid          ## SOMETIMES_CONSUMES
+
+[FixedPcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase
+
+[Depex]
+  TRUE

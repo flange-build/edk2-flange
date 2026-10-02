@@ -1,0 +1,37 @@
+#/** @file
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490SmmuDxe
+  FILE_GUID                      = 099885d8-286c-4841-82f6-3598d8c89914
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = SmmuDxeInitialize
+
+[Sources]
+  SmmuDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  ArmLib
+  DebugLib
+  IoLib
+  Qcs6490NvStatusLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+
+[Protocols]
+  gQcs6490SmmuProtocolGuid                      ## SOMETIMES_PRODUCES
+  gQcs6490SmmuReadyProtocolGuid                 ## PRODUCES
+
+[Depex]
+  TRUE

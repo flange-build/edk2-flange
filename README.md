@@ -424,6 +424,8 @@ The firmware can only be built on Linux currently. For Windows use WSL.
 
 If you get build errors, it is very likely that you're still missing some dependencies. The list of packages above is not complete and depending on the distro you may need to install additional ones. In most cases, looking up the error messages on the internet will point you at the right packages.
 
+Qualcomm platforms (Thundercomm RUBIK Pi 3) have their own build script, see [edk2-qualcomm](edk2-qualcomm/README.md).
+
 # Notes
 
 ## Flash layout

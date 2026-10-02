@@ -1,0 +1,31 @@
+#/** @file
+#
+#  PCI Segment Library for PCIe0 of the QCS6490: the root port through the
+#  DBI, the device below it through the iATU configuration window.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490PciSegmentLib
+  FILE_GUID                      = 9e5c2b17-4a6d-4f30-b1e8-0c7d93a5f264
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciSegmentLib
+
+[Sources]
+  PciSegmentLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  IoLib
+  TimerLib

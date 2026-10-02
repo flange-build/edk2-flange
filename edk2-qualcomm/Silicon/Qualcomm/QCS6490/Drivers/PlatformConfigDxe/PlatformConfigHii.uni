@@ -1,0 +1,158 @@
+// /** @file
+//   Strings of the Platform Configuration formset.
+//
+//   The zh-Hans strings carry the \wide/\narrow markup of
+//   edk2-rockchip/Silicon/Rockchip/Drivers/CjkFontDxe/Tools/UniWide.py:
+//   write them plain and run the tool to put it in.
+//
+//   Copyright (c) 2026, edk2-flange contributors.
+//
+//   SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+#langdef en-US   "English"
+#langdef zh-Hans "\wide简体中文\narrow"
+
+#string STR_NULL_STRING                #language en-US   ""
+                                       #language zh-Hans ""
+
+#string STR_FORM_SET_TITLE             #language en-US   "Platform Configuration"
+                                       #language zh-Hans "\wide平台配置\narrow"
+#string STR_FORM_SET_HELP              #language en-US   "Configure the QCS6490 platform settings."
+                                       #language zh-Hans "\wide配置\narrow QCS6490 \wide平台设置。\narrow"
+
+//
+// Hypervisor setting
+//
+#string STR_HYPERVISOR_PROMPT          #language en-US   "Hypervisor"
+                                       #language zh-Hans "\wide虚拟机监控程序\narrow"
+#string STR_HYPERVISOR_HELP            #language en-US   "The exception level UEFI and the OS run at.\n\n"
+                                                         "EL1 (Gunyah): keep Qualcomm's Gunyah hypervisor. The OS runs at EL1 as its guest, which the vendor kernels and the DSPs (ADSP, CDSP) need.\n\n"
+                                                         "EL2 (KVM): have TrustZone remove Gunyah, so that Linux runs at EL2 and can use KVM. For mainline kernels. When the DSPs are preloaded, Gunyah is removed only once the OS loader is done with UEFI: the DSPs run only when started under Gunyah.\n\n"
+                                                         "Auto: follow the OsConfigTableSelection of xbl_config, like the stock firmware does (xbl_config_kvm.elf selects EL2).\n\n"
+                                                         "Takes effect after a reset, provided the settings are stored on UFS."
+                                       #language zh-Hans "UEFI \wide和操作系统运行的异常级别。\narrow\n\n"
+                                                         "EL1\wide（\narrowGunyah\wide）：保留高通的\narrow Gunyah \wide虚拟机监控程序，操作系统作为其客户机运行在\narrow EL1\wide，厂商内核和\narrow DSP\wide（\narrowADSP\wide、\narrowCDSP\wide）需要这种方式。\narrow\n\n"
+                                                         "EL2\wide（\narrowKVM\wide）：由\narrow TrustZone \wide移除\narrow Gunyah\wide，使\narrow Linux \wide运行在\narrow EL2 \wide并可使用\narrow KVM\wide，适用于主线内核。预加载\narrow DSP \wide时，要等操作系统加载程序用完\narrow UEFI \wide后才移除\narrow Gunyah\wide：\narrowDSP \wide只有在\narrow Gunyah \wide下启动才能运行。\narrow\n\n"
+                                                         "\wide自动：与原厂固件一样，遵循\narrow xbl_config \wide的\narrow OsConfigTableSelection\wide（\narrowxbl_config_kvm.elf \wide选择\narrow EL2\wide）。\narrow\n\n"
+                                                         "\wide重启后生效，前提是设置保存在\narrow UFS \wide上。\narrow"
+#string STR_HYPERVISOR_AUTO            #language en-US   "Auto (follow the boot firmware)"
+                                       #language zh-Hans "\wide自动（跟随启动固件）\narrow"
+#string STR_HYPERVISOR_EL1             #language en-US   "EL1 (Gunyah)"
+                                       #language zh-Hans "EL1\wide（\narrowGunyah\wide）\narrow"
+#string STR_HYPERVISOR_EL2             #language en-US   "EL2 (KVM)"
+                                       #language zh-Hans "EL2\wide（\narrowKVM\wide）\narrow"
+#string STR_HYPERVISOR_EL1_UNTIL_BOOT  #language en-US   "EL1 (Gunyah), EL2 (KVM) once the OS boots"
+                                       #language zh-Hans "EL1\wide（\narrowGunyah\wide），启动操作系统时转为\narrow EL2\wide（\narrowKVM\wide）\narrow"
+
+//
+// DSP preload setting
+//
+#string STR_DSP_PRELOAD_PROMPT         #language en-US   "DSP Preload"
+                                       #language zh-Hans "\wide预加载\narrow DSP"
+#string STR_DSP_PRELOAD_HELP           #language en-US   "Whether UEFI loads the ADSP and CDSP firmware and starts the DSPs before the OS.\n\n"
+                                                         "Auto: when the OS runs at EL2. On this board Linux at EL2 cannot start the DSPs itself; it attaches to the DSPs UEFI started, if the kernel supports that. UEFI then keeps Gunyah until the OS loader is done, as the DSPs run only when started under Gunyah.\n\n"
+                                                         "Disabled: never. The OS starts the DSPs itself, which it can do at EL1.\n\n"
+                                                         "Always: at EL1 too, for a kernel that attaches there.\n\n"
+                                                         "The firmware is read from /usr/lib/firmware on the root file system, where Linux finds it.\n\n"
+                                                         "Takes effect after a reset, provided the settings are stored on UFS."
+                                       #language zh-Hans "UEFI \wide是否在操作系统之前加载\narrow ADSP \wide和\narrow CDSP \wide固件并启动\narrow DSP\wide。\narrow\n\n"
+                                                         "\wide自动：操作系统运行在\narrow EL2 \wide时。本板在\narrow EL2 \wide下的\narrow Linux \wide无法自行启动\narrow DSP\wide，只能接管\narrow UEFI \wide已启动的\narrow DSP\wide（需内核支持）。此时\narrow UEFI \wide会保留\narrow Gunyah \wide直到操作系统加载程序用完\narrow UEFI\wide，因为\narrow DSP \wide只有在\narrow Gunyah \wide下启动才能运行。\narrow\n\n"
+                                                         "\wide禁用：从不预加载，由操作系统自行启动\narrow DSP\wide，\narrowEL1 \wide下可以。\narrow\n\n"
+                                                         "\wide总是：在\narrow EL1 \wide下也预加载，适用于在\narrow EL1 \wide下接管\narrow DSP \wide的内核。\narrow\n\n"
+                                                         "\wide固件从根文件系统的\narrow /usr/lib/firmware \wide读取，与\narrow Linux \wide查找的位置相同。\narrow\n\n"
+                                                         "\wide重启后生效，前提是设置保存在\narrow UFS \wide上。\narrow"
+#string STR_DSP_PRELOAD_AUTO           #language en-US   "Auto (at EL2)"
+                                       #language zh-Hans "\wide自动（\narrowEL2 \wide时）\narrow"
+#string STR_DSP_PRELOAD_DISABLED       #language en-US   "Disabled"
+                                       #language zh-Hans "\wide禁用\narrow"
+#string STR_DSP_PRELOAD_ALWAYS         #language en-US   "Always"
+                                       #language zh-Hans "\wide总是\narrow"
+#string STR_DSP_PRELOAD_ADSP_PROMPT    #language en-US   "ADSP"
+                                       #language zh-Hans "ADSP"
+#string STR_DSP_PRELOAD_ADSP_HELP      #language en-US   "Preload the audio DSP (ADSP)."
+                                       #language zh-Hans "\wide预加载音频\narrow DSP\wide（\narrowADSP\wide）。\narrow"
+#string STR_DSP_PRELOAD_CDSP_PROMPT    #language en-US   "CDSP"
+                                       #language zh-Hans "CDSP"
+#string STR_DSP_PRELOAD_CDSP_HELP      #language en-US   "Preload the compute DSP (CDSP)."
+                                       #language zh-Hans "\wide预加载计算\narrow DSP\wide（\narrowCDSP\wide）。\narrow"
+
+//
+// Status of this boot. The *_VALUE strings are set by PlatformConfigDxe.c.
+//
+#string STR_STATUS_SUBTITLE            #language en-US   "This Boot"
+                                       #language zh-Hans "\wide本次启动\narrow"
+
+#string STR_EL_PROMPT                  #language en-US   "Current Exception Level"
+                                       #language zh-Hans "\wide当前异常级别\narrow"
+#string STR_EL_HELP                    #language en-US   "The exception level UEFI runs at now. The OS starts at the same level, unless Gunyah leaves once the OS loader is done with UEFI."
+                                       #language zh-Hans "UEFI \wide当前运行的异常级别。操作系统也将在此级别启动，除非\narrow Gunyah \wide在操作系统加载程序用完\narrow UEFI \wide后才离开。\narrow"
+#string STR_EL_VALUE                   #language en-US   "Unknown"
+                                       #language zh-Hans "\wide未知\narrow"
+
+#string STR_XBL_PROMPT                 #language en-US   "xbl_config Selection"
+                                       #language zh-Hans "xbl_config \wide选择\narrow"
+#string STR_XBL_HELP                   #language en-US   "What the OsConfigTableSelection property of the xbl_config on the board asks for: EL1 (Gunyah) with the default xbl_config.elf, EL2 (KVM) with xbl_config_kvm.elf. Auto follows it."
+                                       #language zh-Hans "\wide板上\narrow xbl_config \wide中\narrow OsConfigTableSelection \wide属性的要求：默认的\narrow xbl_config.elf \wide为\narrow EL1\wide（\narrowGunyah\wide），\narrowxbl_config_kvm.elf \wide为\narrow EL2\wide（\narrowKVM\wide）。设为自动时遵循此选择。\narrow"
+#string STR_XBL_VALUE                  #language en-US   "Unknown"
+                                       #language zh-Hans "\wide未知\narrow"
+
+#string STR_DECISION_PROMPT            #language en-US   "Chosen at Boot"
+                                       #language zh-Hans "\wide启动时的选择\narrow"
+#string STR_DECISION_HELP              #language en-US   "The exception level the firmware asked for at this boot, and what decided it: the Hypervisor setting when it is EL1 or EL2, otherwise xbl_config, otherwise the build default."
+                                       #language zh-Hans "\wide本次启动时固件请求的异常级别及其依据：虚拟机监控程序设为\narrow EL1 \wide或\narrow EL2 \wide时依据该设置，否则依据\narrow xbl_config\wide，再否则采用编译时默认值。\narrow"
+#string STR_DECISION_VALUE             #language en-US   "Unknown"
+                                       #language zh-Hans "\wide未知\narrow"
+
+#string STR_STORAGE_PROMPT             #language en-US   "Settings Storage"
+                                       #language zh-Hans "\wide设置保存位置\narrow"
+#string STR_STORAGE_HELP               #language en-US   "Where the UEFI settings are kept. When they are in memory only, changes are lost at the next reset."
+                                       #language zh-Hans "UEFI \wide设置的保存位置。如果仅保存在内存中，更改将在下次重启时丢失。\narrow"
+#string STR_STORAGE_VALUE              #language en-US   "Unknown"
+                                       #language zh-Hans "\wide未知\narrow"
+
+//
+// Pieces the status values are made of, formatted by PlatformConfigDxe.c.
+//
+#string STR_VALUE_EL_OTHER             #language en-US   "EL%u"
+                                       #language zh-Hans "EL%u"
+#string STR_VALUE_NOT_FOUND            #language en-US   "Not found"
+                                       #language zh-Hans "\wide未找到\narrow"
+#string STR_VALUE_UNSUPPORTED          #language en-US   "Unsupported value %u"
+                                       #language zh-Hans "\wide不支持的值\narrow %u"
+#string STR_VALUE_NO_STATUS            #language en-US   "Unknown (no status from SEC)"
+                                       #language zh-Hans "\wide未知（\narrowSEC \wide未留下状态）\narrow"
+
+#string STR_DECISION_SETTING           #language en-US   "%s, from the Hypervisor setting"
+                                       #language zh-Hans "%s\wide，依据虚拟机监控程序设置\narrow"
+#string STR_DECISION_XBL               #language en-US   "%s, from xbl_config"
+                                       #language zh-Hans "%s\wide，依据\narrow xbl_config"
+#string STR_DECISION_DEFAULT           #language en-US   "%s, the build default"
+                                       #language zh-Hans "%s\wide，编译时默认值\narrow"
+#string STR_DECISION_TZ_ERROR          #language en-US   "%s; TrustZone returned %d"
+                                       #language zh-Hans "%s\wide；\narrowTrustZone \wide返回\narrow %d"
+
+#string STR_STORAGE_UFS                #language en-US   "UFS LUN%u, partition %s"
+                                       #language zh-Hans "UFS LUN%u\wide，\narrow%s \wide分区\narrow"
+#string STR_STORAGE_UFS_NEW            #language en-US   "UFS LUN%u, partition %s (new)"
+                                       #language zh-Hans "UFS LUN%u\wide，\narrow%s \wide分区（新建）\narrow"
+#string STR_STORAGE_MEMORY             #language en-US   "Memory only: %s"
+                                       #language zh-Hans "\wide仅内存：\narrow%s"
+
+#string STR_REASON_NO_NAME             #language en-US   "no partition configured"
+                                       #language zh-Hans "\wide未配置分区\narrow"
+#string STR_REASON_NOT_TRIED           #language en-US   "not read at boot"
+                                       #language zh-Hans "\wide启动时未读取\narrow"
+#string STR_REASON_MISMATCH            #language en-US   "the partition read at boot is not the store's"
+                                       #language zh-Hans "\wide启动时读取的分区与变量存储不符\narrow"
+#string STR_REASON_NO_PARTITION        #language en-US   "LUN%u has no partition %s"
+                                       #language zh-Hans "LUN%u \wide上没有\narrow %s \wide分区\narrow"
+#string STR_REASON_UFS_ERROR           #language en-US   "UFS error 0x%x"
+                                       #language zh-Hans "UFS \wide错误\narrow 0x%x"
+#string STR_REASON_SMMU_ERROR          #language en-US   "no SMMU entry for UFS"
+                                       #language zh-Hans "UFS \wide无可用的\narrow SMMU \wide表项\narrow"
+#string STR_REASON_TOO_SMALL           #language en-US   "partition %s is too small"
+                                       #language zh-Hans "%s \wide分区太小\narrow"
+#string STR_REASON_UNKNOWN             #language en-US   "unknown result %u"
+                                       #language zh-Hans "\wide未知结果\narrow %u"

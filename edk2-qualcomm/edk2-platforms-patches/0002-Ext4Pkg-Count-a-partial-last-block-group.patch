@@ -1,0 +1,54 @@
+From c7ff3aac48bac1d99388de606bb35f1c7ee96419 Mon Sep 17 00:00:00 2001
+From: Eric Wu <a2wujinyuan@gmail.com>
+Date: Fri, 2 Oct 2026 00:39:30 +0800
+Subject: [PATCH] Ext4Pkg: Count a partial last block group
+
+Ext4OpenSuperblock() rounds the number of block groups down. A file
+system smaller than one block group (32768 blocks with 4 KiB blocks, so
+128 MiB) then has no block group: no group descriptor is read, the
+allocation of a zero-sized buffer for them fails, and the mount fails
+with EFI_OUT_OF_RESOURCES. Larger file systems lose their last, partial
+block group, whose inodes then read as invalid.
+
+Count the block groups as Linux does (s_groups_count in
+ext4_fill_super): the blocks after s_first_data_block, rounded up to
+whole groups.
+
+The 1 MiB usb_fw partition of the RUBIK Pi 3, which holds the Renesas
+uPD720201 firmware, could not be mounted before this.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ Features/Ext4Pkg/Ext4Dxe/Superblock.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/Features/Ext4Pkg/Ext4Dxe/Superblock.c b/Features/Ext4Pkg/Ext4Dxe/Superblock.c
+index 604925b582..ab0dc83c41 100644
+--- a/Features/Ext4Pkg/Ext4Dxe/Superblock.c
++++ b/Features/Ext4Pkg/Ext4Dxe/Superblock.c
+@@ -260,8 +260,20 @@ Ext4OpenSuperblock (
+     return EFI_UNSUPPORTED;
+   }
+ 
+-  Partition->NumberBlocks      = EXT4_BLOCK_NR_FROM_HALFS (Partition, Sb->s_blocks_count, Sb->s_blocks_count_hi);
+-  Partition->NumberBlockGroups = DivU64x32 (Partition->NumberBlocks, Sb->s_blocks_per_group);
++  Partition->NumberBlocks = EXT4_BLOCK_NR_FROM_HALFS (Partition, Sb->s_blocks_count, Sb->s_blocks_count_hi);
++
++  if (Partition->NumberBlocks <= Sb->s_first_data_block) {
++    DEBUG ((DEBUG_ERROR, "[ext4] No blocks after the first data block\n"));
++    return EFI_VOLUME_CORRUPTED;
++  }
++
++  // The last block group may be partial, so round up: a file system smaller
++  // than one block group still has one (s_groups_count in Linux's
++  // ext4_fill_super).
++  Partition->NumberBlockGroups = DivU64x32 (
++                                   Partition->NumberBlocks - Sb->s_first_data_block - 1,
++                                   Sb->s_blocks_per_group
++                                   ) + 1;
+ 
+   DEBUG ((
+     DEBUG_FS,
+-- 
+2.43.0
+

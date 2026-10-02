@@ -1,0 +1,100 @@
+/** @file
+  Platform Configuration formset: the Hypervisor setting, and what the boot
+  firmware and SEC made of it at this boot; the DSP preload setting.
+
+  The value strings of the status lines are filled in by PlatformConfigDxe.c.
+
+  Copyright (c) 2026, edk2-flange contributors.
+
+  SPDX-License-Identifier: BSD-2-Clause-Patent
+
+**/
+
+#include <Uefi/UefiMultiPhase.h>
+#include <Guid/HiiPlatformSetupFormset.h>
+
+#include "PlatformConfigDxe.h"
+
+formset
+  guid      = QCS6490_PLATFORM_CONFIG_GUID,
+  title     = STRING_TOKEN(STR_FORM_SET_TITLE),
+  help      = STRING_TOKEN(STR_FORM_SET_HELP),
+  classguid = EFI_HII_PLATFORM_SETUP_FORMSET_GUID,
+
+  //
+  // SEC reads this variable straight from the store: keep its name, GUID and
+  // attributes in step with Guid/Qcs6490PlatformConfig.h.
+  //
+  efivarstore QCS6490_HYPERVISOR_CONFIG,
+    attribute = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
+    name      = HypervisorMode,
+    guid      = QCS6490_PLATFORM_CONFIG_GUID;
+
+  efivarstore QCS6490_DSP_PRELOAD_CONFIG,
+    attribute = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
+    name      = DspPreload,
+    guid      = QCS6490_PLATFORM_CONFIG_GUID;
+
+  form formid = PLATFORM_CONFIG_FORM_ID,
+    title = STRING_TOKEN(STR_FORM_SET_TITLE);
+
+    oneof varid = HypervisorMode.Mode,
+      prompt = STRING_TOKEN(STR_HYPERVISOR_PROMPT),
+      help   = STRING_TOKEN(STR_HYPERVISOR_HELP),
+      flags  = NUMERIC_SIZE_1 | RESET_REQUIRED,
+      option text = STRING_TOKEN(STR_HYPERVISOR_AUTO), value = QCS6490_HYPERVISOR_MODE_AUTO, flags = DEFAULT | MANUFACTURING;
+      option text = STRING_TOKEN(STR_HYPERVISOR_EL1),  value = QCS6490_HYPERVISOR_MODE_EL1,  flags = 0;
+      option text = STRING_TOKEN(STR_HYPERVISOR_EL2),  value = QCS6490_HYPERVISOR_MODE_EL2,  flags = 0;
+    endoneof;
+
+    //
+    // SEC reads it too: when the OS runs at EL2, preloading keeps Gunyah
+    // until ExitBootServices.
+    //
+    oneof varid = DspPreload.Mode,
+      prompt = STRING_TOKEN(STR_DSP_PRELOAD_PROMPT),
+      help   = STRING_TOKEN(STR_DSP_PRELOAD_HELP),
+      flags  = NUMERIC_SIZE_1 | RESET_REQUIRED,
+      option text = STRING_TOKEN(STR_DSP_PRELOAD_AUTO),     value = QCS6490_DSP_PRELOAD_AUTO,     flags = DEFAULT | MANUFACTURING;
+      option text = STRING_TOKEN(STR_DSP_PRELOAD_DISABLED), value = QCS6490_DSP_PRELOAD_DISABLED, flags = 0;
+      option text = STRING_TOKEN(STR_DSP_PRELOAD_ALWAYS),   value = QCS6490_DSP_PRELOAD_ALWAYS,   flags = 0;
+    endoneof;
+
+    grayoutif ideqval DspPreload.Mode == QCS6490_DSP_PRELOAD_DISABLED;
+      checkbox varid = DspPreload.Adsp,
+        prompt = STRING_TOKEN(STR_DSP_PRELOAD_ADSP_PROMPT),
+        help   = STRING_TOKEN(STR_DSP_PRELOAD_ADSP_HELP),
+        flags  = CHECKBOX_DEFAULT | CHECKBOX_DEFAULT_MFG | RESET_REQUIRED,
+      endcheckbox;
+
+      checkbox varid = DspPreload.Cdsp,
+        prompt = STRING_TOKEN(STR_DSP_PRELOAD_CDSP_PROMPT),
+        help   = STRING_TOKEN(STR_DSP_PRELOAD_CDSP_HELP),
+        flags  = CHECKBOX_DEFAULT | CHECKBOX_DEFAULT_MFG | RESET_REQUIRED,
+      endcheckbox;
+    endif;
+
+    subtitle text = STRING_TOKEN(STR_NULL_STRING);
+    subtitle text = STRING_TOKEN(STR_STATUS_SUBTITLE);
+
+    text
+      help = STRING_TOKEN(STR_EL_HELP),
+      text = STRING_TOKEN(STR_EL_PROMPT),
+      text = STRING_TOKEN(STR_EL_VALUE);
+
+    text
+      help = STRING_TOKEN(STR_XBL_HELP),
+      text = STRING_TOKEN(STR_XBL_PROMPT),
+      text = STRING_TOKEN(STR_XBL_VALUE);
+
+    text
+      help = STRING_TOKEN(STR_DECISION_HELP),
+      text = STRING_TOKEN(STR_DECISION_PROMPT),
+      text = STRING_TOKEN(STR_DECISION_VALUE);
+
+    text
+      help = STRING_TOKEN(STR_STORAGE_HELP),
+      text = STRING_TOKEN(STR_STORAGE_PROMPT),
+      text = STRING_TOKEN(STR_STORAGE_VALUE);
+  endform;
+endformset;

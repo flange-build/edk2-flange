@@ -1,0 +1,56 @@
+#/** @file
+#
+#  Downloads the firmware of a Renesas uPD720201/uPD720202 xHCI without an
+#  EEPROM from the board's usb_fw partition before XhciDxe binds to it.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = RenesasXhciFwDxe
+  FILE_GUID                      = c8a4e1f2-5b37-4d6e-9a02-7f1b6d3e8c95
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = RenesasXhciFwDxeInitialize
+
+[Sources]
+  Firmware.c
+  RenesasXhciFw.h
+  RenesasXhciFwDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  DevicePathLib
+  MemoryAllocationLib
+  PcdLib
+  TimerLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+
+[Protocols]
+  gEdkiiNonDiscoverableDeviceProtocolGuid       ## SOMETIMES_CONSUMES
+  gEfiBlockIoProtocolGuid                       ## SOMETIMES_CONSUMES
+  gEfiDevicePathProtocolGuid                    ## SOMETIMES_CONSUMES
+  gEfiPartitionInfoProtocolGuid                 ## SOMETIMES_CONSUMES
+  gEfiPciIoProtocolGuid                         ## TO_START
+  gEfiSimpleFileSystemProtocolGuid              ## SOMETIMES_CONSUMES
+
+[Guids]
+  gEdkiiNonDiscoverableUfsDeviceGuid            ## SOMETIMES_CONSUMES
+  gEfiFileInfoGuid                              ## SOMETIMES_CONSUMES
+
+[Pcd]
+  gQcs6490TokenSpaceGuid.PcdRenesasXhciFwPartition
+  gQcs6490TokenSpaceGuid.PcdRenesasXhciFwPath

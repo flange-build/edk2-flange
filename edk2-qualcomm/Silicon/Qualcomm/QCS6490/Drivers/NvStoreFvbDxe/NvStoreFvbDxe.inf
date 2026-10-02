@@ -1,0 +1,68 @@
+#/** @file
+#
+#  Firmware Volume Block driver for the QCS6490 UEFI variable store: serves
+#  the store SEC reads from UFS into memory, and writes changes back to the
+#  UFS partition at boot time.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490NvStoreFvbDxe
+  FILE_GUID                      = 5ac3f3db-b0a7-4061-9e5c-5f5d8ace5a00
+  MODULE_TYPE                    = DXE_RUNTIME_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = NvStoreFvbDxeInitialize
+
+[Sources]
+  NvStoreFvbDxe.c
+  NvStoreFvbDxe.h
+
+[Packages]
+  EmbeddedPkg/EmbeddedPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryAllocationLib
+  PcdLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+  UefiRuntimeLib
+
+[Guids]
+  gEdkiiNvVarStoreFormattedGuid                 ## PRODUCES
+  gEfiAuthenticatedVariableGuid                 ## SOMETIMES_PRODUCES
+  gEfiSystemNvDataFvGuid                        ## SOMETIMES_PRODUCES
+  gEfiEventBeforeExitBootServicesGuid           ## CONSUMES
+  gEfiEventVirtualAddressChangeGuid             ## CONSUMES
+  gEfiRtPropertiesTableGuid                     ## PRODUCES
+
+[Protocols]
+  gEfiFirmwareVolumeBlockProtocolGuid           ## PRODUCES
+  gEfiDevicePathProtocolGuid                    ## PRODUCES
+  gEfiBlockIoProtocolGuid                       ## CONSUMES
+  gEfiPartitionInfoProtocolGuid                 ## CONSUMES
+  gEfiResetNotificationProtocolGuid             ## SOMETIMES_CONSUMES
+
+[FixedPcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase64
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase64
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase64
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize
+  gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun
+  gQcs6490TokenSpaceGuid.PcdNvStorePartitionName
+
+[Depex]
+  TRUE

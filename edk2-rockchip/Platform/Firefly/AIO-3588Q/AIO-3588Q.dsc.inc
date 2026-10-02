@@ -130,9 +130,6 @@
   # Device Tree Support
   Platform/Firefly/AIO-3588Q/DeviceTree/Vendor.inf
 
-  # Splash screen logo
-  $(VENDOR_DIRECTORY)/Drivers/LogoDxe/LogoDxe.inf
-
   # Hack to enable use of PCA95XX during PCIe initialization.
   MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf {
     <LibraryClasses>

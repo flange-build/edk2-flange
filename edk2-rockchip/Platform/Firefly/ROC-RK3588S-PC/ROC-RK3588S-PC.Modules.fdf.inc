@@ -11,6 +11,3 @@
 
   # Device Tree Support
   INF RuleOverride = DTB Platform/Firefly/ROC-RK3588S-PC/DeviceTree/Vendor.inf
-
-  # Splash screen logo
-  INF $(VENDOR_DIRECTORY)/Drivers/LogoDxe/LogoDxe.inf

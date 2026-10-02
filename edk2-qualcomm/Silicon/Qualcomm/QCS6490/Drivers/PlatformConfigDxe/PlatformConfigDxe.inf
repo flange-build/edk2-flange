@@ -1,0 +1,62 @@
+#/** @file
+#
+#  Platform Configuration formset in the Device Manager: the Hypervisor
+#  setting (EL1 with Gunyah, EL2 with KVM, or Auto) and the status of this
+#  boot.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490PlatformConfigDxe
+  FILE_GUID                      = f104027a-8ca2-4bd1-bea8-9544789c8619
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = PlatformConfigDxeInitialize
+
+[Sources]
+  PlatformConfigDxe.c
+  PlatformConfigDxe.h
+  PlatformConfigHii.uni
+  PlatformConfigHii.vfr
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  Silicon/Qualcomm/QCS6490/QCS6490.dec
+
+[LibraryClasses]
+  ArmLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  HiiLib
+  MemoryAllocationLib
+  PcdLib
+  PrintLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiRuntimeServicesTableLib
+
+[Guids]
+  gQcs6490PlatformConfigGuid                    ## PRODUCES ## Variable:L"HypervisorMode"
+  gQcs6490PlatformConfigGuid                    ## PRODUCES ## Variable:L"DspPreload"
+
+[Protocols]
+  gEfiDevicePathProtocolGuid                    ## PRODUCES
+
+[FixedPcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase64
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize
+  gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun
+  gQcs6490TokenSpaceGuid.PcdNvStorePartitionName
+
+[Depex]
+  gEfiVariableArchProtocolGuid AND
+  gEfiVariableWriteArchProtocolGuid

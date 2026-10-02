@@ -1,0 +1,36 @@
+#/** @file
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = Qcs6490SmbiosMemoryDxe
+  FILE_GUID                      = 9345de6e-e4e5-442c-954d-94cf4e1b32f8
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = SmbiosMemoryDxeInitialize
+
+[Sources]
+  SmbiosMemoryDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  HobLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+
+[Protocols]
+  gEfiSmbiosProtocolGuid                        ## CONSUMES
+
+[Depex]
+  gEfiSmbiosProtocolGuid

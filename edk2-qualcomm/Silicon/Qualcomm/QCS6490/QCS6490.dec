@@ -1,0 +1,167 @@
+#/** @file
+#
+#  Qualcomm QCS6490 (Kodiak) SoC support shared by the boards in edk2-qualcomm.
+#
+#  Copyright (c) 2026, edk2-flange contributors.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  DEC_SPECIFICATION              = 0x0001001B
+  PACKAGE_NAME                   = QCS6490
+  PACKAGE_GUID                   = 0aeb376a-9528-4f4b-93cb-ebf4c47937c4
+  PACKAGE_VERSION                = 0.1
+
+[Includes]
+  Include
+
+  #
+  # For the device trees built from devicetree-rebasing (resolved through
+  # PACKAGES_PATH, like the Rockchip boards do).
+  #
+  devicetree/mainline/upstream/include
+
+[LibraryClasses]
+  ##  @libraryclass  Polled RPMh requests through DRV2 of the apps RSC.
+  Qcs6490RpmhLib|Include/Library/Qcs6490RpmhLib.h
+
+  ##  @libraryclass  The status page SEC leaves after the variable store.
+  Qcs6490NvStatusLib|Include/Library/Qcs6490NvStatusLib.h
+
+  ##  @libraryclass  Power domains, branch clocks, roots and resets of the GCC.
+  Qcs6490GccLib|Include/Library/Qcs6490GccLib.h
+
+  ##  @libraryclass  TLMM pin configuration and GPIO levels.
+  Qcs6490TlmmLib|Include/Library/Qcs6490TlmmLib.h
+
+[Guids.common]
+  gQcs6490TokenSpaceGuid = { 0xb1807de8, 0xa80e, 0x4fcd, { 0xba, 0x44, 0xfd, 0x98, 0xcb, 0x27, 0x9e, 0x4e } }
+
+  #
+  # Vendor GUID of the platform settings variables, and of the Platform
+  # Configuration formset. Include/Guid/Qcs6490PlatformConfig.h
+  #
+  gQcs6490PlatformConfigGuid = { 0xe2442d08, 0x80fa, 0x478e, { 0x8c, 0x24, 0x88, 0x38, 0xb4, 0x5f, 0x8d, 0xa9 } }
+
+[Protocols.common]
+  #
+  # Installed (with no interface) once SmmuDxe has set up the streams of the
+  # devices UEFI does DMA with.
+  #
+  gQcs6490SmmuReadyProtocolGuid = { 0xfc576c2b, 0xcb3c, 0x44ec, { 0x82, 0x5a, 0xea, 0xdc, 0x52, 0xdc, 0xcb, 0x69 } }
+
+  #
+  # Installed by SmmuDxe when the OS runs at EL2, to hand streams over to it
+  # in bypass. Include/Protocol/Qcs6490Smmu.h
+  #
+  gQcs6490SmmuProtocolGuid = { 0xe7c57892, 0x299f, 0x4197, { 0xa2, 0xb0, 0x7b, 0xee, 0x2c, 0x46, 0xa4, 0x5d } }
+
+  #
+  # Installed by GunyahExitDxe when Gunyah leaves at ExitBootServices, for
+  # drivers to act around the exit. Include/Protocol/Qcs6490GunyahExit.h
+  #
+  gQcs6490GunyahExitProtocolGuid = { 0x4c6bcf46, 0x5e19, 0x4af9, { 0x83, 0xcd, 0x92, 0x67, 0x3c, 0x26, 0xb6, 0x75 } }
+
+  #
+  # EFI_DT_FIXUP_PROTOCOL of the U-Boot EFI project, which GRUB calls on the
+  # device tree it loads. Include/Protocol/EfiDtFixup.h
+  #
+  gEfiDtFixupProtocolGuid = { 0xe617d64c, 0xfe08, 0x46da, { 0xf4, 0xdc, 0xbb, 0xd5, 0x87, 0x0c, 0x73, 0x00 } }
+
+[PcdsFixedAtBuild.common]
+  #
+  # The exception level when neither the HypervisorMode setting (EL1 or EL2)
+  # nor xbl_config's OsConfigTableSelection decides it (see
+  # Include/Guid/Qcs6490PlatformConfig.h). TRUE asks TrustZone to tear down
+  # the Gunyah hypervisor and continue at EL2, as the upstream RB3 Gen 2 port
+  # does; FALSE keeps UEFI and the OS at EL1 as a Gunyah guest.
+  #
+  gQcs6490TokenSpaceGuid.PcdExitGunyah|FALSE|BOOLEAN|0x00000001
+
+  #
+  # When a boot that runs the OS at EL2 leaves Gunyah
+  # (QCS6490_GUNYAH_LATE_EXIT_* in Include/Qcs6490NvStore.h): 0 first thing
+  # in SEC; 1 once the OS loader's ExitBootServices succeeded, when the DSPs
+  # are to be preloaded (TrustZone starts them for a Gunyah guest only),
+  # else in SEC; 2 always at ExitBootServices.
+  #
+  gQcs6490TokenSpaceGuid.PcdGunyahLateExit|1|UINT8|0x00000004
+
+  #
+  # DRAM described from PcdSystemMemoryBase when the RAM partition table XBL
+  # leaves in SMEM cannot be read.
+  #
+  gQcs6490TokenSpaceGuid.PcdFallbackSystemMemorySize|0x80000000|UINT64|0x00000002
+
+  #
+  # QUP serial engines to load protocol firmware into, from the qupfw_a
+  # partition: one UINT32 per engine, its base address OR'ed with the protocol
+  # the board's device tree gives it (1 SPI, 2 UART, 3 I2C). Ends at 0.
+  #
+  gQcs6490TokenSpaceGuid.PcdQupFwSerialEngines|{ 0x0 }|VOID*|0x00000003
+
+  #
+  # HDMI output through an LT9611 MIPI DSI to HDMI bridge on DSI0
+  # (MdssDisplayDxe). Off unless the board describes the bridge.
+  #
+  gQcs6490TokenSpaceGuid.PcdDisplayEnable|FALSE|BOOLEAN|0x00000010
+
+  #
+  # How the LT9611 is wired: its 7-bit I2C address, the GPIOs of its I2C bus
+  # (driven as GPIOs by UEFI) and the TLMM function they go back to for the
+  # OS, its reset and 3.3 V enable GPIOs, and whether its MIPI input is on
+  # port B.
+  #
+  gQcs6490TokenSpaceGuid.PcdLt9611I2cAddress|0x39|UINT8|0x00000011
+  gQcs6490TokenSpaceGuid.PcdLt9611SdaGpio|0|UINT16|0x00000012
+  gQcs6490TokenSpaceGuid.PcdLt9611SclGpio|0|UINT16|0x00000013
+  gQcs6490TokenSpaceGuid.PcdLt9611I2cPinFunction|0|UINT8|0x00000014
+  gQcs6490TokenSpaceGuid.PcdLt9611ResetGpio|0|UINT16|0x00000015
+  gQcs6490TokenSpaceGuid.PcdLt9611PowerGpio|0|UINT16|0x00000016
+  gQcs6490TokenSpaceGuid.PcdLt9611PortB|FALSE|BOOLEAN|0x00000017
+
+  #
+  # Where the UEFI variable store lives on UFS: the LUN and the GPT partition
+  # name (a UTF-16 string). SEC reads it into memory at
+  # PcdFlashNvStorageVariableBase64, the FVB driver writes changes back.
+  # An empty name keeps the variables in memory only. See
+  # Include/Qcs6490NvStore.h.
+  #
+  gQcs6490TokenSpaceGuid.PcdNvStoreUfsLun|0|UINT8|0x00000020
+  gQcs6490TokenSpaceGuid.PcdNvStorePartitionName|L""|VOID*|0x00000021
+
+  #
+  # The GPT name of the partition holding the OS's root file system, where
+  # DspPreloadDxe reads the DSP firmware from (usr/lib/firmware), a UTF-16
+  # string.
+  #
+  gQcs6490TokenSpaceGuid.PcdDspFirmwarePartition|L"rootfs"|VOID*|0x00000030
+
+  #
+  # PCIe0 (Qcs6490PciHostBridgeLib), off unless the board wires it: its
+  # PERST# GPIO, and the GPIOs that power what sits on the link, driven high
+  # in order before PERST# is released, each followed by PcdPcie0PowerRampUs
+  # (a UINT16 list ending with 0xFFFF).
+  #
+  gQcs6490TokenSpaceGuid.PcdPcie0Enable|FALSE|BOOLEAN|0x00000040
+  gQcs6490TokenSpaceGuid.PcdPcie0PerstGpio|0|UINT16|0x00000041
+  gQcs6490TokenSpaceGuid.PcdPcie0PowerGpios|{ UINT16(0xFFFF) }|VOID*|0x00000042
+  gQcs6490TokenSpaceGuid.PcdPcie0PowerRampUs|50000|UINT32|0x00000043
+
+  #
+  # The secondary USB controller (usb_2, USB 2.0 only) in host mode
+  # (Dwc3HostDxe), off unless the board wires a port to it, and the GPIOs
+  # driven high for that port (a UINT16 list ending with 0xFFFF).
+  #
+  gQcs6490TokenSpaceGuid.PcdUsbSecondaryHostEnable|FALSE|BOOLEAN|0x00000050
+  gQcs6490TokenSpaceGuid.PcdUsbSecondaryPowerGpios|{ UINT16(0xFFFF) }|VOID*|0x00000051
+
+  #
+  # Where RenesasXhciFwDxe reads the firmware of a Renesas uPD720201/2 xHCI
+  # without an EEPROM from: a file (UTF-16 path) on the GPT partition of that
+  # name, the one Linux reads it from too.
+  #
+  gQcs6490TokenSpaceGuid.PcdRenesasXhciFwPartition|L"usb_fw"|VOID*|0x00000060
+  gQcs6490TokenSpaceGuid.PcdRenesasXhciFwPath|L"\\renesas_usb_fw.mem"|VOID*|0x00000061
