@@ -50,7 +50,8 @@ devices and the GLINK channels of both come up).
 
 Not supported yet: networking in UEFI (the Ethernet port is an ASIX
 AX88179 on the USB 3.0 controller), the USB-C port in UEFI, PCIe1 (the
-M.2 slot); display modes other than 1080p60; USB-C DisplayPort. Variables the OS writes at runtime are not
+M.2 slot); display modes other than 1080p60; USB-C DisplayPort; Windows,
+which needs ACPI tables (see the research in [docs/windows](docs/windows/)). Variables the OS writes at runtime are not
 kept (see [Settings](#settings)).
 
 ## What differs from the upstream RB3 Gen 2 port
@@ -313,6 +314,7 @@ splash screen of the stock UEFI. It lives in
 edk2-qualcomm/
 ├── build.sh                     Build entry point
 ├── configs/                     One file per board
+├── docs/windows/                Research notes on Windows 11 on Arm (not implemented)
 ├── edk2-platforms-patches/      Fixes to upstream edk2-platforms code
 ├── misc/qtestsign/              ELF hash segment and test signature (submodule)
 ├── Platform/Thundercomm/RubikPi3/
