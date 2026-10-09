@@ -19,9 +19,10 @@
   at ExitBootServices (GunyahExitDxe), the streams are recorded, and set up
   once it has left: Gunyah wipes the entries it does not leave in bypass.
 
-  The stream-to-context entries are put back at ExitBootServices, so the OS
-  finds no stream matched that the boot firmware did not match. The display
-  stops fetching before that, in the BeforeExitBootServices group, and
+  Stream-to-context entries without a persistent handoff request are put
+  back at ExitBootServices. A display without handoff stops fetching before
+  that, in the BeforeExitBootServices group. Persistent display mappings
+  remain valid until Gunyah leaves and the EL2 bypass entries are installed.
   XhciDxe halts the USB host controllers in an ExitBootServices handler of
   the same TPL that it creates later, so it runs first. The bypass
   context bank stays as it is: the hypervisor aborts a guest that gives a
@@ -105,9 +106,11 @@ STATIC CONST SMMU_STREAM  mStreams[] = {
 };
 
 typedef struct {
-  UINTN     Index;
-  UINT32    Smr;
-  UINT32    S2cr;
+  UINTN                Index;
+  UINT32               Smr;
+  UINT32               S2cr;
+  CONST SMMU_STREAM    *Stream;
+  BOOLEAN              HandOver;
 } SAVED_ENTRY;
 
 STATIC SAVED_ENTRY  mSavedEntries[ARRAY_SIZE (mStreams)];
@@ -263,6 +266,19 @@ RestoreSmmu (
   UINTN  Index;
 
   for (Index = 0; Index < mSavedEntryCount; Index++) {
+    //
+    // A handed-over device may still be doing DMA (notably GOP scanout).
+    // Keep its guest mapping until Gunyah leaves, after this event group.
+    // AfterGunyahExit installs the queued EL2 bypass mapping afterwards.
+    // Restoring it here leaves an active device without a stream mapping
+    // while Gunyah still owns the SMMU, causing a fatal DMA fault.
+    //
+    if (mSavedEntries[Index].HandOver) {
+      DEBUG ((DEBUG_INFO, "%a: keeping %a stream entry %u until Gunyah exits\n", __func__, mSavedEntries[Index].Stream->Name, mSavedEntries[Index].Index));
+      continue;
+    }
+
+    DEBUG ((DEBUG_INFO, "%a: restoring %a stream entry %u\n", __func__, mSavedEntries[Index].Stream->Name, mSavedEntries[Index].Index));
     MmioWrite32 (APPS_SMMU_BASE + SMMU_SMR (mSavedEntries[Index].Index), mSavedEntries[Index].Smr);
     MmioWrite32 (APPS_SMMU_BASE + SMMU_S2CR (mSavedEntries[Index].Index), mSavedEntries[Index].S2cr);
   }
@@ -420,6 +436,9 @@ HandOverBypass (
   IN CONST CHAR8            *Name
   )
 {
+  UINTN              Index;
+  CONST SMMU_STREAM  *Stream;
+
   //
   // Gunyah owns the SMMU until it leaves at ExitBootServices.
   //
@@ -432,6 +451,18 @@ HandOverBypass (
     mPending[mPendingCount].Mask = Mask;
     mPending[mPendingCount].Name = Name;
     mPendingCount++;
+
+    //
+    // The existing EL1 mapping must survive RestoreSmmu until the queued
+    // handoff can run at EL2. Preserve every entry overlapping this range.
+    // DSPs have no saved UEFI entry, so they only need the queued handoff.
+    //
+    for (Index = 0; Index < mSavedEntryCount; Index++) {
+      Stream = mSavedEntries[Index].Stream;
+      if (((Stream->Id ^ StreamId) & ~(Stream->Mask | Mask)) == 0) {
+        mSavedEntries[Index].HandOver = TRUE;
+      }
+    }
 
     DEBUG ((DEBUG_INFO, "%a: %a stream 0x%x mask 0x%x, for once Gunyah has left\n", __func__, Name, StreamId, Mask));
     return EFI_SUCCESS;
@@ -677,9 +708,11 @@ SmmuDxeInitialize (
       continue;
     }
 
-    mSavedEntries[mSavedEntryCount].Index = Index;
-    mSavedEntries[mSavedEntryCount].Smr   = MmioRead32 (APPS_SMMU_BASE + SMMU_SMR (Index));
-    mSavedEntries[mSavedEntryCount].S2cr  = MmioRead32 (APPS_SMMU_BASE + SMMU_S2CR (Index));
+    mSavedEntries[mSavedEntryCount].Index    = Index;
+    mSavedEntries[mSavedEntryCount].Smr      = MmioRead32 (APPS_SMMU_BASE + SMMU_SMR (Index));
+    mSavedEntries[mSavedEntryCount].S2cr     = MmioRead32 (APPS_SMMU_BASE + SMMU_S2CR (Index));
+    mSavedEntries[mSavedEntryCount].Stream   = &mStreams[Stream];
+    mSavedEntries[mSavedEntryCount].HandOver = FALSE;
     mSavedEntryCount++;
 
     //
