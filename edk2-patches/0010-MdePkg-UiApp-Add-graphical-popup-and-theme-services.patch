@@ -1,0 +1,125 @@
+From: Flange contributors
+Subject: [PATCH] MdePkg/UiApp: optional graphical popup and theme services
+
+Keep the original HII behavior when the boot-menu provider is absent.
+The provider owns theme persistence and restores protocol adapters on exit.
+
+diff --git a/MdePkg/Include/Protocol/FlangeUi.h b/MdePkg/Include/Protocol/FlangeUi.h
+new file mode 100644
+--- /dev/null
++++ b/MdePkg/Include/Protocol/FlangeUi.h
+@@ -0,0 +1,14 @@
++/** @file Optional boot-menu services; absent on unmodified platforms.
++  SPDX-License-Identifier: BSD-2-Clause-Patent
++**/
++#ifndef FLANGE_UI_PROTOCOL_H_
++#define FLANGE_UI_PROTOCOL_H_
++#define FLANGE_UI_PROTOCOL_GUID {0x3ed10e26,0xf089,0x4b7a,{0x8e,0x23,0x6d,0x1b,0x43,0x25,0x95,0x80}}
++#define FLANGE_UI_PROTOCOL_REVISION 1
++#define FLANGE_THEME_QUESTION_ID 0xf701
++typedef struct {
++  UINT32 Revision;
++  EFI_STATUS (EFIAPI *ChooseTheme)(VOID);
++  EFI_STATUS (EFIAPI *Popup)(EFI_INPUT_KEY *Key OPTIONAL, UINTN Count, CHAR16 **Lines);
++} FLANGE_UI_PROTOCOL;
++#endif
+diff --git a/MdePkg/Library/UefiLib/Console.c b/MdePkg/Library/UefiLib/Console.c
+--- a/MdePkg/Library/UefiLib/Console.c
++++ b/MdePkg/Library/UefiLib/Console.c
+@@ -7,6 +7,7 @@
+ **/
+ 
+ #include "UefiLibInternal.h"
++#include <Protocol/FlangeUi.h>
+ 
+ typedef struct {
+   CHAR16    WChar;
+@@ -412,6 +413,29 @@
+   UINTN                            EventIndex;
+   CHAR16                           *TmpString;
+ 
++  // Optional graphical provider. Keep the original behavior when unavailable.
++  {
++    EFI_GUID Guid = FLANGE_UI_PROTOCOL_GUID;
++    FLANGE_UI_PROTOCOL *Ui;
++    if (!EFI_ERROR (gBS->LocateProtocol (&Guid, NULL, (VOID **)&Ui)) &&
++        Ui->Revision == FLANGE_UI_PROTOCOL_REVISION) {
++      UINTN Count = 0;
++      CHAR16 **Lines;
++      VA_START (Args, Key);
++      while (VA_ARG (Args, CHAR16 *) != NULL) Count++;
++      VA_END (Args);
++      Lines = AllocatePool (MAX (1, Count) * sizeof (*Lines));
++      if (Lines != NULL) {
++        VA_START (Args, Key);
++        for (UINTN Index = 0; Index < Count; Index++) Lines[Index] = VA_ARG (Args, CHAR16 *);
++        VA_END (Args);
++        Status = Ui->Popup (Key, Count, Lines);
++        FreePool (Lines);
++        if (!EFI_ERROR (Status)) return;
++      }
++    }
++  }
++
+   //
+   // Determine the length of the longest line in the popup and the the total
+   // number of lines in the popup
+diff --git a/MdeModulePkg/Application/UiApp/FrontPage.c b/MdeModulePkg/Application/UiApp/FrontPage.c
+--- a/MdeModulePkg/Application/UiApp/FrontPage.c
++++ b/MdeModulePkg/Application/UiApp/FrontPage.c
+@@ -7,6 +7,7 @@
+ 
+ **/
+ 
++#include <Protocol/FlangeUi.h>
+ #include "FrontPage.h"
+ #include "FrontPageCustomizedUi.h"
+ 
+@@ -181,6 +182,17 @@
+   OUT EFI_BROWSER_ACTION_REQUEST            *ActionRequest
+   )
+ {
++  if (QuestionId == FLANGE_THEME_QUESTION_ID) {
++    EFI_GUID Guid = FLANGE_UI_PROTOCOL_GUID;
++    FLANGE_UI_PROTOCOL *Ui;
++    if (Action != EFI_BROWSER_ACTION_CHANGING) return EFI_SUCCESS;
++    if (!EFI_ERROR (gBS->LocateProtocol (&Guid, NULL, (VOID **)&Ui)) &&
++        Ui->Revision == FLANGE_UI_PROTOCOL_REVISION) {
++      if (!EFI_ERROR (Ui->ChooseTheme ())) *ActionRequest = EFI_BROWSER_ACTION_REQUEST_EXIT;
++      return EFI_SUCCESS;
++    }
++    return EFI_UNSUPPORTED;
++  }
+   return UiFrontPageCallbackHandler (gFrontPagePrivate.HiiHandle, Action, QuestionId, Type, Value, ActionRequest);
+ }
+ 
+@@ -234,6 +246,17 @@
+     gFrontPagePrivate.HiiHandle,
+     StartOpCodeHandle
+     );
++
++  {
++    EFI_GUID Guid = FLANGE_UI_PROTOCOL_GUID;
++    FLANGE_UI_PROTOCOL *Ui;
++    if (!EFI_ERROR (gBS->LocateProtocol (&Guid, NULL, (VOID **)&Ui)) &&
++        Ui->Revision == FLANGE_UI_PROTOCOL_REVISION) {
++      HiiCreateActionOpCode (StartOpCodeHandle, FLANGE_THEME_QUESTION_ID,
++        STRING_TOKEN (STR_FLANGE_THEME), STRING_TOKEN (STR_FLANGE_THEME_HELP),
++        EFI_IFR_FLAG_CALLBACK, 0);
++    }
++  }
+ 
+   HiiUpdateForm (
+     gFrontPagePrivate.HiiHandle,
+diff --git a/MdeModulePkg/Application/UiApp/FrontPageStrings.uni b/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
+--- a/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
++++ b/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
+@@ -97,3 +97,8 @@
+                                  #language zh-Hans  "\wide配置已更改，需要重启才能生效。\narrow"
+ #string STR_PRESS_ENTER_TO_RESET #language en-US  "Press ENTER to reset"
+                                  #language zh-Hans  "\wide按\narrow <Enter> \wide键重启\narrow"
++
++#string STR_FLANGE_THEME #language en-US "Menu theme"
++                        #language zh-Hans "\wide菜单主题\narrow"
++#string STR_FLANGE_THEME_HELP #language en-US "Choose Field, Terminal, Paper, Wartime, or the original HII interface."
++                             #language zh-Hans "\wide选择\narrow Field\wide、\narrowTerminal\wide、\narrowPaper\wide、\narrowWartime \wide或原版\narrow HII \wide界面。\narrow"

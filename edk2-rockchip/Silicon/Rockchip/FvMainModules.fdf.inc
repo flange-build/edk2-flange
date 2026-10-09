@@ -258,6 +258,7 @@
   INF MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
   INF MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
   INF MdeModulePkg/Universal/BdsDxe/BdsDxe.inf
+  INF edk2-common/Applications/FlangeUi/FlangeUi.inf
   INF MdeModulePkg/Application/UiApp/UiApp.inf
 
   #

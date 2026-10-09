@@ -1,0 +1,54 @@
+## @file
+# Shared graphical boot menu. SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = FlangeUi
+  FILE_GUID = 80c6b7d4-83d8-4941-ab92-b6b5d2da5435
+  MODULE_TYPE = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT = FlangeUiEntry
+[Sources]
+  FlangeUi.c
+  FlangeValue.c
+  FlangeTheme.c
+  FlangePanel.c
+  FlangeForms.c
+  FlangeView.c
+  FlangeView.h
+  FlangeText.c
+  FlangeText.h
+  Fonts/FlangeBody20.c
+  Fonts/FlangeCjk24.c
+  Fonts/FlangeSmall18.c
+  Fonts/FlangeLabel14.c
+  Fonts/FlangeMono14.c
+  Fonts/FlangeMono20.c
+  Fonts/FlangeTitle28.c
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  edk2-common/Flange.dec
+[LibraryClasses]
+  HiiLib
+  BaseLib
+  BaseMemoryLib
+  DevicePathLib
+  MemoryAllocationLib
+  PrintLib
+  TimerLib
+  UefiApplicationEntryPoint
+  UefiBootManagerLib
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+  LvglLib
+[Protocols]
+  gEdkiiFormDisplayEngineProtocolGuid
+  gEfiHiiPopupProtocolGuid
+  gEfiGraphicsOutputProtocolGuid
+  gEfiFirmwareVolume2ProtocolGuid
+  gEfiSimplePointerProtocolGuid
+[Guids]
+  gEfiGlobalVariableGuid
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DFLANGE_UEFI -DLV_CONF_INCLUDE_SIMPLE

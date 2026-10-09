@@ -4,6 +4,8 @@
 
 基于 [TianoCore EDK II](https://github.com/tianocore/edk2) 的 ARM64 UEFI 固件，支持 Rockchip RK3588 和 Qualcomm QCS6490 开发板，提供固件设置、启动管理和板级硬件初始化，并共享启动标志与中英文菜单。
 
+图形菜单基于 LVGL，首页、各级设置和弹窗统一支持 Field、Terminal、Paper、Wartime 四种风格，也可切回原版 HII。首页按 `T` 打开主题菜单，选择会保存到下次启动；原版 HII 首页同样提供主题入口。字体、操作与构建说明见 [菜单界面文档](edk2-common/Applications/FlangeUi/README.md)。
+
 Rockchip 支持源自 [edk2-rk3588](https://github.com/edk2-porting/edk2-rk3588)。Qualcomm 支持基于 [edk2-platforms](https://github.com/tianocore/edk2-platforms) 的 RB3 Gen 2 移植，加入本地 QCS6490 驱动及 Thundercomm RUBIK Pi 3 平台。
 
 <a id="platforms-and-guides"></a>

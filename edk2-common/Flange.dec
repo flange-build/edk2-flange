@@ -1,0 +1,13 @@
+## @file
+# Shared flange graphical boot interface.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  DEC_SPECIFICATION = 0x0001001B
+  PACKAGE_NAME      = Flange
+  PACKAGE_GUID      = 36bd4d32-7f5a-43fa-9da2-6f075f88ee23
+  PACKAGE_VERSION   = 0.1
+[Includes]
+  Include
+  ThirdParty
+[LibraryClasses]
+  LvglLib|lvgl/lvgl.h

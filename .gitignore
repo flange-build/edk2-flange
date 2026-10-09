@@ -11,3 +11,12 @@ ramdisk
 *.orig
 *_FLASH.img
 *_UEFI.elf
+
+# Reproducible LVGL design previews and downloaded font tooling.
+/ark-work/flange-ui/
+/output/flange-ui/
+
+# Local hardware flash backups, logs and Python bytecode.
+/output/rubikpi-flash-*/
+/output/rubikpi-enter-fix-*/
+__pycache__/

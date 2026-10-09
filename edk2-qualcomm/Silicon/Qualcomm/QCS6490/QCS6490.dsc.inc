@@ -409,7 +409,7 @@
   gEfiMdePkgTokenSpaceGuid.PcdDefaultTerminalType|4
 
   gEfiMdeModulePkgTokenSpaceGuid.PcdResetOnMemoryTypeInformationChange|FALSE
-  gEfiMdeModulePkgTokenSpaceGuid.PcdBootManagerMenuFile|{ 0x21, 0xaa, 0x2c, 0x46, 0x14, 0x76, 0x03, 0x45, 0x83, 0x6e, 0x8a, 0xb6, 0xf4, 0x66, 0x23, 0x31 }
+  gEfiMdeModulePkgTokenSpaceGuid.PcdBootManagerMenuFile|{ 0xd4, 0xb7, 0xc6, 0x80, 0xd8, 0x83, 0x41, 0x49, 0xab, 0x92, 0xb6, 0xb5, 0xd2, 0xda, 0x54, 0x35 }
 
   #
   # The maximum physical I/O addressability of the processor, set with
@@ -627,6 +627,10 @@
   MdeModulePkg/Universal/BdsDxe/BdsDxe.inf
   MdeModulePkg/Universal/BootManagerPolicyDxe/BootManagerPolicyDxe.inf
   edk2-common/Drivers/LogoDxe/LogoDxe.inf
+  edk2-common/Applications/FlangeUi/FlangeUi.inf {
+    <LibraryClasses>
+      LvglLib|edk2-common/ThirdParty/LvglLib.inf
+  }
   MdeModulePkg/Application/UiApp/UiApp.inf {
     <LibraryClasses>
       NULL|MdeModulePkg/Library/DeviceManagerUiLib/DeviceManagerUiLib.inf

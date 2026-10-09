@@ -157,6 +157,7 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Universal/DriverHealthManagerDxe/DriverHealthManagerDxe.inf
   INF MdeModulePkg/Universal/BdsDxe/BdsDxe.inf
   INF MdeModulePkg/Universal/BootManagerPolicyDxe/BootManagerPolicyDxe.inf
+  INF edk2-common/Applications/FlangeUi/FlangeUi.inf
   INF MdeModulePkg/Application/UiApp/UiApp.inf
 
   #
