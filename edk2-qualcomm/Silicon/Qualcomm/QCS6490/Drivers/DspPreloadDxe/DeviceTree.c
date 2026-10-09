@@ -18,14 +18,202 @@
 
 #include <Guid/Fdt.h>
 #include <Library/FdtLib.h>
+#include <Library/MemoryAllocationLib.h>
+#include <Library/PcdLib.h>
+#include <Library/PrintLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <Protocol/EfiDtFixup.h>
+#include <Protocol/GraphicsOutput.h>
 
 #include "DspPreload.h"
 
 STATIC CONST DSP  *mFixupDsps;
 STATIC UINTN      mFixupDspCount;
+
+/**
+  Fill the board-specific framebuffer template from GOP. Clone its resource
+  properties into a correctly named runtime node, keeping clocks and supplies
+  attached to the framebuffer rather than an unclaimed native display device.
+  No template means the loader supplied a different display configuration.
+**/
+STATIC
+EFI_STATUS
+DtFixupDisplay (
+  IN OUT VOID   *Fdt,
+  IN OUT UINTN  *BufferSize
+  )
+{
+  EFI_GRAPHICS_OUTPUT_PROTOCOL           *Gop;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE      *Mode;
+  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION   *Info;
+  EFI_STATUS                            Status;
+  VOID                                  *Original;
+  INT32                                 Node;
+  INT32                                 NewNode;
+  INT32                                 Chosen;
+  INT32                                 Property;
+  INT32                                 Length;
+  INT32                                 Error;
+  CONST FDT_PROPERTY                     *Prop;
+  CONST CHAR8                           *Name;
+  CONST UINT32                          *Reg;
+  UINT32                                Cells[4];
+  CHAR8                                 NodeName[40];
+
+  if (!FixedPcdGetBool (PcdDisplayHandoff)) {
+    return EFI_SUCCESS;
+  }
+
+  Chosen = FdtPathOffset (Fdt, "/chosen");
+  Node   = FdtNodeOffsetByCompatible (Fdt, -1, "simple-framebuffer");
+  if ((Node < 0) || (FdtParentOffset (Fdt, Node) != Chosen)) {
+    return EFI_SUCCESS;
+  }
+
+  Status = gBS->LocateProtocol (&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)&Gop);
+  if (EFI_ERROR (Status) || (Gop->Mode == NULL) || (Gop->Mode->Info == NULL) ||
+      (Gop->Mode->FrameBufferSize == 0))
+  {
+    // An incomplete template must not suppress Linux's EFI framebuffer.
+    FdtDelNode (Fdt, Node);
+    return EFI_SUCCESS;
+  }
+
+  Mode = Gop->Mode;
+  Info = Mode->Info;
+  if ((Info->PixelFormat != PixelBlueGreenRedReserved8BitPerColor) ||
+      (Mode->FrameBufferBase == 0))
+  {
+    return EFI_UNSUPPORTED;
+  }
+
+  Reg = FdtGetProp (Fdt, Node, "reg", &Length);
+  if ((Reg != NULL) && (Length == sizeof (Cells)) &&
+      (Fdt32ToCpu (Reg[0]) == (UINT32)RShiftU64 (Mode->FrameBufferBase, 32)) &&
+      (Fdt32ToCpu (Reg[1]) == (UINT32)Mode->FrameBufferBase))
+  {
+    return EFI_SUCCESS;
+  }
+
+  if (*BufferSize < FdtTotalSize (Fdt) + SIZE_1KB) {
+    *BufferSize = FdtTotalSize (Fdt) + SIZE_1KB;
+    return EFI_BUFFER_TOO_SMALL;
+  }
+
+  Original = AllocateCopyPool (FdtTotalSize (Fdt), Fdt);
+  if (Original == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  Error = FdtOpenInto (Fdt, Fdt, (INT32)*BufferSize);
+  if (Error != 0) {
+    FreePool (Original);
+    return EFI_DEVICE_ERROR;
+  }
+
+  Error = FdtDelNode (Fdt, Node);
+  AsciiSPrint (NodeName, sizeof (NodeName), "framebuffer@%lx", Mode->FrameBufferBase);
+  NewNode = (Error == 0) ? FdtAddSubnode (Fdt, Chosen, NodeName) : Error;
+  if (NewNode < 0) {
+    FreePool (Original);
+    return EFI_DEVICE_ERROR;
+  }
+
+  for (Property = FdtFirstPropertyOffset (Original, Node);
+       Property >= 0;
+       Property = FdtNextPropertyOffset (Original, Property))
+  {
+    Prop = FdtGetPropertyByOffset (Original, Property, &Length);
+    if (Prop == NULL) {
+      Error = Length;
+      break;
+    }
+
+    Name  = FdtGetString (Original, Fdt32ToCpu (Prop->NameOffset), NULL);
+    Error = FdtSetProp (Fdt, NewNode, Name, Prop->Data, Fdt32ToCpu (Prop->Length));
+    if (Error != 0) {
+      break;
+    }
+  }
+
+  FreePool (Original);
+  Cells[0] = CpuToFdt32 ((UINT32)RShiftU64 (Mode->FrameBufferBase, 32));
+  Cells[1] = CpuToFdt32 ((UINT32)Mode->FrameBufferBase);
+  Cells[2] = CpuToFdt32 ((UINT32)RShiftU64 (Mode->FrameBufferSize, 32));
+  Cells[3] = CpuToFdt32 ((UINT32)Mode->FrameBufferSize);
+  if (Error == 0) {
+    Error = FdtSetProp (Fdt, NewNode, "reg", Cells, sizeof (Cells));
+  }
+
+  Cells[0] = CpuToFdt32 (Info->HorizontalResolution);
+  if (Error == 0) {
+    Error = FdtSetProp (Fdt, NewNode, "width", Cells, sizeof (UINT32));
+  }
+
+  Cells[0] = CpuToFdt32 (Info->VerticalResolution);
+  if (Error == 0) {
+    Error = FdtSetProp (Fdt, NewNode, "height", Cells, sizeof (UINT32));
+  }
+
+  Cells[0] = CpuToFdt32 (Info->PixelsPerScanLine * sizeof (UINT32));
+  if (Error == 0) {
+    Error = FdtSetProp (Fdt, NewNode, "stride", Cells, sizeof (UINT32));
+  }
+
+  if (Error == 0) {
+    Error = FdtSetPropString (Fdt, NewNode, "status", "okay");
+  }
+
+  if (Error != 0) {
+    FdtDelNode (Fdt, NewNode);
+    DEBUG ((DEBUG_ERROR, "%a: framebuffer fixup failed: %d\n", __func__, Error));
+    return EFI_DEVICE_ERROR;
+  }
+
+  DEBUG ((DEBUG_INFO, "%a: %a %ux%u stride %u\n", __func__, NodeName,
+          Info->HorizontalResolution, Info->VerticalResolution, Info->PixelsPerScanLine * 4));
+  return EFI_SUCCESS;
+}
+
+VOID
+DtPrepareDisplay (
+  VOID
+  )
+{
+  VOID                  *Fdt;
+  EFI_PHYSICAL_ADDRESS  Base;
+  UINTN                 Size;
+  EFI_STATUS            Status;
+
+  if (!FixedPcdGetBool (PcdDisplayHandoff) ||
+      EFI_ERROR (EfiGetSystemConfigurationTable (&gFdtTableGuid, &Fdt)) ||
+      (Fdt == NULL) || (FdtCheckHeader (Fdt) != 0))
+  {
+    return;
+  }
+
+  Size   = ALIGN_VALUE (FdtTotalSize (Fdt) + SIZE_4KB, EFI_PAGE_SIZE);
+  Status = gBS->AllocatePages (AllocateAnyPages, EfiACPIReclaimMemory, EFI_SIZE_TO_PAGES (Size), &Base);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: DT allocation: %r\n", __func__, Status));
+    return;
+  }
+
+  if (FdtOpenInto (Fdt, (VOID *)(UINTN)Base, (INT32)(Size - SIZE_1KB)) != 0) {
+    Status = EFI_DEVICE_ERROR;
+  } else {
+    Status = DtFixupDisplay ((VOID *)(UINTN)Base, &Size);
+    if (!EFI_ERROR (Status)) {
+      Status = gBS->InstallConfigurationTable (&gFdtTableGuid, (VOID *)(UINTN)Base);
+    }
+  }
+
+  if (EFI_ERROR (Status)) {
+    gBS->FreePages (Base, EFI_SIZE_TO_PAGES (Size));
+    DEBUG ((DEBUG_ERROR, "%a: DT handoff: %r\n", __func__, Status));
+  }
+}
 
 /**
   Returns the board's device tree.
@@ -239,9 +427,9 @@ DtFixupRunningDsps (
 }
 
 /**
-  Implements EFI_DT_FIXUP_PROTOCOL.Fixup(): removes the iommus property of
-  the remoteproc nodes of the DSPs that run. The device tree only shrinks,
-  in place.
+  Implements EFI_DT_FIXUP_PROTOCOL.Fixup(): updates the framebuffer template
+  and removes iommus from running DSPs. The framebuffer fixup may require
+  more space; report the required size before modifying the caller's tree.
 
   @param[in]      This        The protocol.
   @param[in,out]  Fdt         The device tree.
@@ -250,7 +438,7 @@ DtFixupRunningDsps (
 
   @retval EFI_SUCCESS            Done.
   @retval EFI_INVALID_PARAMETER  Not a device tree, or unknown flags.
-  @retval EFI_BUFFER_TOO_SMALL   The buffer is smaller than the device tree.
+  @retval EFI_BUFFER_TOO_SMALL   More buffer space is needed for the fixup.
 **/
 STATIC
 EFI_STATUS
@@ -278,6 +466,11 @@ DtFixup (
   }
 
   if ((Flags & EFI_DT_APPLY_FIXUPS) != 0) {
+    Status = DtFixupDisplay (Fdt, BufferSize);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+
     Removed = DtFixupRunningDsps (Fdt, mFixupDsps, mFixupDspCount);
     DEBUG ((DEBUG_INFO, "%a: %u iommus properties removed\n", __func__, (UINT32)Removed));
   }

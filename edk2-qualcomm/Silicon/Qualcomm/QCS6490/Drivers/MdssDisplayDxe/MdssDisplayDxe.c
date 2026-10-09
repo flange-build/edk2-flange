@@ -6,9 +6,9 @@
   LT9611 over bit-banged I2C, then power and clocks, the DSI PHY and its PLL,
   the DSI controller and the DPU, scanning out a framebuffer at 1920x1080@60.
 
-  Before ExitBootServices the display is stopped and powered down again, so
-  that the OS finds it as the stock firmware leaves it after its splash
-  screen: off, with the LT9611 powered and out of reset.
+  Boards opting into the simple-framebuffer handoff keep the pipeline and
+  its SMMU bypass alive for the OS. Other boards stop it before boot services
+  exit, leaving the LT9611 powered and out of reset.
 
   Copyright (c) 2026, edk2-flange contributors.
 
@@ -26,6 +26,7 @@
 
 #include <Guid/EventGroup.h>
 #include <Protocol/Cpu.h>
+#include <Protocol/Qcs6490Smmu.h>
 
 #define DISPLAY_BYTES_PER_PIXEL  4
 
@@ -138,9 +139,8 @@ DisplayStop (
 }
 
 /**
-  Stops the display before the memory map goes away: the SMMU entry the DPU
-  fetches through is removed at ExitBootServices, and the OS expects to find
-  the display off.
+  Keep an opted-in GOP pipeline running; otherwise stop it before the SMMU
+  mappings used only by UEFI are restored at ExitBootServices.
 
   @param[in]  Event    The event.
   @param[in]  Context  Unused.
@@ -154,6 +154,12 @@ OnBeforeExitBootServices (
   )
 {
   if (mStage != DisplayStageNone) {
+    if (FixedPcdGetBool (PcdDisplayHandoff) && (mStage == DisplayStageRunning)) {
+      DEBUG ((DEBUG_INFO, "%a: keeping HDMI scanout for the OS\n", __func__));
+      Lt9611ReleaseBus ();
+      return;
+    }
+
     DEBUG ((DEBUG_INFO, "%a: stopping the display\n", __func__));
     DisplayStop ();
   }
@@ -241,9 +247,24 @@ MdssDisplayDxeInitialize (
   EFI_PHYSICAL_ADDRESS   FrameBufferBase;
   UINTN                  FrameBufferSize;
   EFI_HANDLE             GopHandle;
+  QCS6490_SMMU_PROTOCOL   *Smmu;
 
   if (!FixedPcdGetBool (PcdDisplayEnable)) {
     return EFI_UNSUPPORTED;
+  }
+
+  // A running scanout must survive Linux enabling the SMMU. At EL1 this
+  // records a deferred bypass, reapplied once Gunyah exits to EL2.
+  if (FixedPcdGetBool (PcdDisplayHandoff)) {
+    Status = gBS->LocateProtocol (&gQcs6490SmmuProtocolGuid, NULL, (VOID **)&Smmu);
+    if (!EFI_ERROR (Status)) {
+      Status = Smmu->HandOverBypass (Smmu, 0x900, 0x402, "MDSS");
+    }
+
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: cannot hand over MDSS DMA: %r\n", __func__, Status));
+      return Status;
+    }
   }
 
   Board.I2cAddress     = FixedPcdGet8 (PcdLt9611I2cAddress);

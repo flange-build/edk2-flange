@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Diagnostic workarounds for the stock Ubuntu arm64 installer kernel.
+#include "../../../../../devicetree/mainline/upstream/src/arm64/qcom/qcs6490-thundercomm-rubikpi3.dts"
+
+// ICE probing caused an asynchronous SError. Keep UFS available without ICE.
+&ice {
+    status = "disabled";
+};
+
+&ufs_mem_hc {
+    /delete-property/ qcom,ice;
+};
+
+// GPI channel allocation during async_tx initialization caused a reset.
+&gpi_dma0 {
+    status = "disabled";
+};
+
+&gpi_dma1 {
+    status = "disabled";
+};
+
+// The upstream LT9611 driver cannot use the board's single B input yet.
+// Keep UEFI's DPU/DSI/bridge configuration and expose it through simpledrm.
+// DISPCC probing parks the shared roots, so Linux must leave it untouched.
+&mdss {
+    status = "disabled";
+};
+
+&dispcc {
+    status = "disabled";
+};
+
+&lt9611_codec {
+    status = "disabled";
+};
+
+&vreg_lt9611_3v3 {
+    regulator-boot-on;
+    regulator-always-on;
+};
+
+// These supplies must survive independently of simpledrm's probe. The RPMh
+// and refgen drivers can arrive as modules, after clk_disable_unused().
+// Referencing them from the framebuffer would defer its probe and leave the
+// display clocks unclaimed during that cleanup. Keep the rails on here so
+// the built-in simpledrm driver can claim the clocks and TBU power domains
+// as soon as GCC is ready, without global clk/pd_ignore_unused parameters.
+&vreg_l6b_1p2 {
+    regulator-boot-on;
+    regulator-always-on;
+};
+
+&vreg_l10c_0p88 {
+    regulator-boot-on;
+    regulator-always-on;
+};
+
+&refgen {
+    regulator-boot-on;
+    regulator-always-on;
+};
+
+// Qualcomm pinctrl treats input-disable as output-disable. Applying the
+// stock power pin state would briefly remove GPIO83's drive before the fixed
+// regulator requests output-high, resetting the already configured bridge.
+&lt9611_vcc_pin {
+    /delete-property/ input-disable;
+};
+
+/ {
+    chosen {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        // Firmware replaces this template with framebuffer@<GOP address>.
+        framebuffer@0 {
+            compatible = "simple-framebuffer";
+            reg = <0 0 0 0>;
+            width = <0>;
+            height = <0>;
+            stride = <0>;
+            format = "x8r8g8b8";
+            status = "disabled";
+            clocks = <&gcc GCC_DISP_AHB_CLK>,
+                     <&gcc GCC_DISP_HF_AXI_CLK>,
+                     <&gcc GCC_DISP_SF_AXI_CLK>,
+                     <&gcc GCC_DISP_GPLL0_CLK_SRC>;
+            // MDSS's stream 0x900/mask 0x402 spans the HF0 and HF1 TBUs.
+            // Bypass preserves the mapping, but their power must stay on.
+            power-domains = <&gcc HLOS1_VOTE_MMNOC_MMU_TBU_HF0_GDSC>,
+                            <&gcc HLOS1_VOTE_MMNOC_MMU_TBU_HF1_GDSC>;
+            display = <&mdss>;
+        };
+    };
+};

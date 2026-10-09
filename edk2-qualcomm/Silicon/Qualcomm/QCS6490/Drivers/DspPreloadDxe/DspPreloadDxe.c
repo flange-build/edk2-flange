@@ -1245,6 +1245,7 @@ OnReadyToBoot (
   mDone = TRUE;
   gBS->CloseEvent (Event);
 
+  DtPrepareDisplay ();
   DspPreloadAll ();
 }
 

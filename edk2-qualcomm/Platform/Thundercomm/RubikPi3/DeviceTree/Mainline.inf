@@ -14,7 +14,7 @@
   VERSION_STRING                 = 1.0
 
 [Sources]
-  devicetree/mainline/upstream/src/arm64/qcom/qcs6490-thundercomm-rubikpi3.dts
+  qcs6490-thundercomm-rubikpi3-mainline.dts
 
 [Packages]
   MdePkg/MdePkg.dec

@@ -58,6 +58,7 @@
   # GPIO21 and its 3.3 V enable on GPIO83.
   #
   gQcs6490TokenSpaceGuid.PcdDisplayEnable|TRUE
+  gQcs6490TokenSpaceGuid.PcdDisplayHandoff|TRUE
   gQcs6490TokenSpaceGuid.PcdLt9611I2cAddress|0x39
   gQcs6490TokenSpaceGuid.PcdLt9611SdaGpio|36
   gQcs6490TokenSpaceGuid.PcdLt9611SclGpio|37

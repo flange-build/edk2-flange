@@ -60,6 +60,7 @@
   gEfiCpuArchProtocolGuid                       ## CONSUMES
   gEfiDevicePathProtocolGuid                    ## CONSUMES
   gEfiDtFixupProtocolGuid                       ## PRODUCES
+  gEfiGraphicsOutputProtocolGuid                ## SOMETIMES_CONSUMES
   gEfiPartitionInfoProtocolGuid                 ## CONSUMES
   gEfiSimpleFileSystemProtocolGuid              ## CONSUMES
   gQcs6490GunyahExitProtocolGuid                ## SOMETIMES_CONSUMES
@@ -75,6 +76,9 @@
   gQcs6490TokenSpaceGuid.PcdDspFirmwarePartition
   gQualcommSiliconPkgTokenSpaceGuid.PcdSmemBaseAddress
   gQualcommSiliconPkgTokenSpaceGuid.PcdSmemSize
+
+[FixedPcd]
+  gQcs6490TokenSpaceGuid.PcdDisplayHandoff
 
 [Depex]
   TRUE

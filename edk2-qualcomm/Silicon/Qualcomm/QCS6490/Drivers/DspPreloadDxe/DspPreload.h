@@ -578,6 +578,12 @@ DtFixupRunningDsps (
   IN UINTN      Count
   );
 
+// Populate the board's simple-framebuffer template before an OS loader runs.
+VOID
+DtPrepareDisplay (
+  VOID
+  );
+
 /**
   Installs EFI_DT_FIXUP_PROTOCOL, through which GRUB has the device tree it
   loads fixed up for the DSPs that run.

@@ -122,6 +122,9 @@
   gQcs6490TokenSpaceGuid.PcdLt9611PowerGpio|0|UINT16|0x00000016
   gQcs6490TokenSpaceGuid.PcdLt9611PortB|FALSE|BOOLEAN|0x00000017
 
+  # Keep the GOP pipeline running for a board-specific simple-framebuffer DT.
+  gQcs6490TokenSpaceGuid.PcdDisplayHandoff|FALSE|BOOLEAN|0x00000018
+
   #
   # Where the UEFI variable store lives on UFS: the LUN and the GPT partition
   # name (a UTF-16 string). SEC reads it into memory at

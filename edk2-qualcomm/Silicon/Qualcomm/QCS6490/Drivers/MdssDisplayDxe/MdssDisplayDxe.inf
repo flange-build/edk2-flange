@@ -59,12 +59,14 @@
   gEfiEdidActiveProtocolGuid                    ## SOMETIMES_PRODUCES
   gEfiEdidDiscoveredProtocolGuid                ## SOMETIMES_PRODUCES
   gEfiGraphicsOutputProtocolGuid                ## PRODUCES
+  gQcs6490SmmuProtocolGuid                      ## SOMETIMES_CONSUMES
 
 [Guids]
   gEfiEventBeforeExitBootServicesGuid           ## CONSUMES ## Event
 
 [FixedPcd]
   gQcs6490TokenSpaceGuid.PcdDisplayEnable
+  gQcs6490TokenSpaceGuid.PcdDisplayHandoff
   gQcs6490TokenSpaceGuid.PcdLt9611I2cAddress
   gQcs6490TokenSpaceGuid.PcdLt9611SdaGpio
   gQcs6490TokenSpaceGuid.PcdLt9611SclGpio
