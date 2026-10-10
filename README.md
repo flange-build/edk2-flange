@@ -30,7 +30,7 @@ Rockchip 设备名称见 [configs](configs/)，Qualcomm 设备名称见 [edk2-qu
 | Hypervisor（虚拟机监控程序） | **EL2 (KVM)** |
 | DSP Preload（预加载 DSP） | **Disabled** |
 
-HDMI 保留 UEFI 初始化的 1920×1080@60 DPU/DSI/LT9611 配置，并将帧缓冲交给 Linux `simpledrm`。设备树保持显示供电，使 Linux 在清理未使用资源之前接管显示时钟和电源域。本次验证覆盖固件帧缓冲输出；尚未验证原生显示模式设置、GPU 加速及休眠恢复。
+HDMI 保留 UEFI 初始化的 1920×1080@60 DPU/DSI/LT9611 配置，并将帧缓冲交给 Linux `simpledrm`。设备树保持显示供电，使 Linux 在清理未使用资源之前接管显示时钟和电源域。原生显示模式设置及休眠恢复尚未验证。已安装系统在 `7.0.0-38-generic` 上的 Adreno GPU 加速另见 [RubikPi3 MSM DKMS](edk2-qualcomm/linux/rubikpi3-msm-dkms/README.md)。
 
 板级设备树禁用了会触发安装器内核故障的 ICE 和 GPI 节点，同时保留 UFS 访问。DSP 预加载仍可用于其他配置，但近期测试中，Ubuntu 安装器在 DSP Auto 配置下未能进入 Linux。请对上述已验证配置保持 Disabled；具体内部故障仍在排查。
 

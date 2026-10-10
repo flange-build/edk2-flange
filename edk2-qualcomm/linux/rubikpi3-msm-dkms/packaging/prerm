@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+case "$1" in
+    remove|upgrade|deconfigure)
+        if [ -d /var/lib/dkms/rubikpi3-msm/0.1.0 ]; then
+            dkms remove -m rubikpi3-msm -v 0.1.0 --all
+        fi
+        ;;
+esac

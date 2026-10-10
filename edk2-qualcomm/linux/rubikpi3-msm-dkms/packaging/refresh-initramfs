@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+kernel=$1
+# DKMS runs POST_INSTALL/POST_REMOVE before its own depmod. Update the index
+# first so the initramfs generator sees the new module selection.
+depmod -a "$kernel"
+# Our package's postinst/postrm refresh all initrds after configuration changes
+# and report any failure to dpkg. Avoid generating the same image twice.
+if [ "${DPKG_MAINTSCRIPT_PACKAGE:-}" = rubikpi3-msm-dkms ]; then
+    exit 0
+fi
+if [ -e "/boot/initrd.img-$kernel" ]; then
+    update-initramfs -u -k "$kernel"
+fi
+# New kernels without an initrd are handled by the distribution's kernel hook.

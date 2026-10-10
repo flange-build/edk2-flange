@@ -65,7 +65,9 @@ RubikPi3 启用 `PcdDisplayHandoff`。`MdssDisplayDxe` 在 ExitBootServices 时�
 
 不带两个 ignore-unused 参数的诊断启动中，simpledrm 约在 18 秒绑定，早于约 23 秒时正常执行的未使用时钟 / 电源域清理。随后使用未经修改的安装器启动项，也成功进入桌面并保持 HDMI 输出。
 
-此路径使用固件帧缓冲，尚未验证原生加速显示模式设置。其他分辨率、GPU 加速与休眠恢复仍待验证。如替换 DTB，必须提供必要的交接资源；上述 Ubuntu 结果仅适用于附带的板级设备树。
+此路径使用固件帧缓冲，尚未验证原生显示模式设置、其他分辨率与休眠恢复。如替换 DTB，必须提供必要的交接资源；上述 Ubuntu 结果仅适用于附带的板级设备树。
+
+已安装到 UFS 的 Ubuntu 26.04.1 / `7.0.0-38-generic` 可另行使用 [RubikPi3 MSM DKMS](linux/rubikpi3-msm-dkms/README.md) 修复 EL2 下的 Adreno 643 渲染。该驱动配合 Ubuntu Mesa Freedreno / Turnip，HDMI 仍由 `simpledrm` 输出；适用范围、安装与回退见模块说明。
 
 <a id="what-differs-from-the-upstream-rb3-gen-2-port"></a>
 ## 与上游 RB3 Gen 2 移植的差异

@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+if [ "$1" = configure ]; then
+    /usr/lib/dkms/common.postinst rubikpi3-msm 0.1.0 '' '' "${2:-}"
+    # Also covers a changed modprobe configuration and propagates initrd errors
+    # to dpkg (DKMS does not propagate all POST_INSTALL hook failures).
+    update-initramfs -u -k all
+fi

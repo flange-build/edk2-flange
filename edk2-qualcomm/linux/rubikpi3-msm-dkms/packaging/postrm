@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+case "$1" in
+    remove|purge)
+        # dpkg has now removed the package's modprobe configuration as well.
+        if command -v update-initramfs >/dev/null 2>&1; then
+            update-initramfs -u -k all
+        fi
+        ;;
+esac

@@ -1,0 +1,47 @@
+--- a/drivers/gpu/drm/msm/adreno/adreno_gpu.c
++++ b/drivers/gpu/drm/msm/adreno/adreno_gpu.c
+@@ -7,6 +7,9 @@
+  */
+ 
+ #include <linux/ascii85.h>
++#ifdef CONFIG_ARM64
++#include <asm/virt.h>
++#endif
+ #include <linux/interconnect.h>
+ #include <linux/firmware/qcom/qcom_scm.h>
+ #include <linux/kernel.h>
+@@ -26,6 +29,11 @@
+ module_param(address_space_size, ullong, 0600);
+ 
+ static bool zap_available = true;
++
++static bool zap_direct_el2 = true;
++module_param(zap_direct_el2, bool, 0400);
++MODULE_PARM_DESC(zap_direct_el2,
++	"Use direct SECVID mode switch on RubikPi3 running at EL2");
+ 
+ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
+ 		u32 pasid)
+@@ -171,6 +179,22 @@
+ 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+ 	struct platform_device *pdev = gpu->pdev;
+ 
++#ifdef CONFIG_ARM64
++	/*
++	 * RubikPi3's EL2 firmware handoff leaves SECVID accessible to the host.
++	 * Reuse a6xx_hw_init's existing no-ZAP path for direct SECVID switching.
++	 * Check the current exception level: boot-mode state is not exported
++	 * to modules, and an nVHE host running at EL1 cannot use this workaround.
++	 */
++	if (zap_direct_el2 &&
++	    of_machine_is_compatible("thundercomm,rubikpi3") &&
++	    is_kernel_in_hyp_mode()) {
++		dev_info_once(&pdev->dev,
++			      "EL2 boot: using direct GPU SECVID mode switch\n");
++		return -ENODEV;
++	}
++#endif
++
+ 	/* Short cut if we determine the zap shader isn't available/needed */
+ 	if (!zap_available)
+ 		return -ENODEV;

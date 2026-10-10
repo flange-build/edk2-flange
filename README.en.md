@@ -44,9 +44,9 @@ and reboot:
 The HDMI path preserves UEFI's 1920×1080@60 DPU/DSI/LT9611 configuration
 and hands its framebuffer to Linux `simpledrm`. The device tree keeps its
 supplies on and lets Linux claim display clocks and power domains before
-unused-resource cleanup. This validates firmware framebuffer output;
-native display modesetting, GPU acceleration and suspend/resume are not
-established by this test.
+unused-resource cleanup. Native display modesetting and suspend/resume remain
+unverified. For Adreno GPU acceleration on the installed system with
+`7.0.0-38-generic`, see [RubikPi3 MSM DKMS](edk2-qualcomm/linux/rubikpi3-msm-dkms/README.en.md).
 
 The board overrides disable ICE and GPI nodes that caused failures with
 the installer kernel, while retaining UFS access. DSP preload remains

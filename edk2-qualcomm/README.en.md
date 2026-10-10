@@ -123,10 +123,14 @@ bound at about 18 seconds, ahead of the normal unused clock/domain cleanup
 at about 23 seconds. The next boot used the unedited installer entry and
 reached the desktop with HDMI output.
 
-This is a firmware framebuffer path, not validation of native accelerated
-modesetting. Other resolutions, GPU acceleration and suspend/resume have
-not been verified with it. A replacement DTB must provide the necessary
+This firmware framebuffer path has not been validated for native modesetting,
+other resolutions or suspend/resume. A replacement DTB must provide the necessary
 handoff resources; the Ubuntu result applies to the bundled board tree.
+
+Ubuntu 26.04.1 installed on UFS with `7.0.0-38-generic` can use the separate
+[RubikPi3 MSM DKMS package](linux/rubikpi3-msm-dkms/README.en.md) to fix Adreno 643
+rendering at EL2. It uses Ubuntu Mesa Freedreno / Turnip while `simpledrm` keeps
+HDMI scanout. See the module guide for scope, installation and rollback.
 
 ## What differs from the upstream RB3 Gen 2 port
 

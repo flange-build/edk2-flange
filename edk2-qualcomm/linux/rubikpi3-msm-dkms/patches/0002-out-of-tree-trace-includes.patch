@@ -1,0 +1,18 @@
+--- a/drivers/gpu/drm/msm/msm_gpu_trace.h
++++ b/drivers/gpu/drm/msm/msm_gpu_trace.h
+@@ -234,5 +234,5 @@
+ #endif
+ 
+ #undef TRACE_INCLUDE_PATH
+-#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/msm
++#define TRACE_INCLUDE_PATH .
+ #include <trace/define_trace.h>
+--- a/drivers/gpu/drm/msm/msm_atomic_trace.h
++++ b/drivers/gpu/drm/msm/msm_atomic_trace.h
+@@ -106,5 +106,5 @@
+ #endif
+ 
+ #undef TRACE_INCLUDE_PATH
+-#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/msm
++#define TRACE_INCLUDE_PATH .
+ #include <trace/define_trace.h>
