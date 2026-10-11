@@ -31,6 +31,35 @@
 STATIC CONST DSP  *mFixupDsps;
 STATIC UINTN      mFixupDspCount;
 
+STATIC
+EFI_STATUS
+DtSetDisplayFixupVersion (
+  IN OUT VOID  *Fdt,
+  IN     UINTN BufferSize
+  )
+{
+  INT32   Chosen;
+  UINT32  Version;
+
+  if (FdtOpenInto (Fdt, Fdt, (INT32)BufferSize) != 0) {
+    return EFI_DEVICE_ERROR;
+  }
+
+  Chosen = FdtPathOffset (Fdt, "/chosen");
+  if (Chosen < 0) {
+    Chosen = FdtAddSubnode (Fdt, 0, "chosen");
+  }
+
+  Version = CpuToFdt32 (1);
+  if ((Chosen < 0) ||
+      (FdtSetProp (Fdt, Chosen, "flange,display-fixup-version", &Version, sizeof (Version)) != 0))
+  {
+    return EFI_DEVICE_ERROR;
+  }
+
+  return EFI_SUCCESS;
+}
+
 /**
   Fill the board-specific framebuffer template from GOP. Clone its resource
   properties into a correctly named runtime node, keeping clocks and supplies
@@ -58,6 +87,10 @@ DtFixupDisplay (
   CONST FDT_PROPERTY                     *Prop;
   CONST CHAR8                           *Name;
   CONST UINT32                          *Reg;
+  CONST UINT32                          *Version;
+  BOOLEAN                               HasVersion;
+  BOOLEAN                               RemoveFramebuffer;
+  UINTN                                 RequiredSize;
   UINT32                                Cells[4];
   CHAR8                                 NodeName[40];
 
@@ -67,8 +100,11 @@ DtFixupDisplay (
 
   Chosen = FdtPathOffset (Fdt, "/chosen");
   Node   = FdtNodeOffsetByCompatible (Fdt, -1, "simple-framebuffer");
+  Version = (Chosen >= 0) ? FdtGetProp (Fdt, Chosen, "flange,display-fixup-version", &Length) : NULL;
+  HasVersion = (Version != NULL) && (Length == sizeof (*Version)) && (Fdt32ToCpu (*Version) == 1);
+  RemoveFramebuffer = FALSE;
   if ((Node < 0) || (FdtParentOffset (Fdt, Node) != Chosen)) {
-    return EFI_SUCCESS;
+    goto CapabilityOnly;
   }
 
   Status = gBS->LocateProtocol (&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)&Gop);
@@ -76,8 +112,8 @@ DtFixupDisplay (
       (Gop->Mode->FrameBufferSize == 0))
   {
     // An incomplete template must not suppress Linux's EFI framebuffer.
-    FdtDelNode (Fdt, Node);
-    return EFI_SUCCESS;
+    RemoveFramebuffer = TRUE;
+    goto CapabilityOnly;
   }
 
   Mode = Gop->Mode;
@@ -93,7 +129,7 @@ DtFixupDisplay (
       (Fdt32ToCpu (Reg[0]) == (UINT32)RShiftU64 (Mode->FrameBufferBase, 32)) &&
       (Fdt32ToCpu (Reg[1]) == (UINT32)Mode->FrameBufferBase))
   {
-    return EFI_SUCCESS;
+    goto CapabilityOnly;
   }
 
   if (*BufferSize < FdtTotalSize (Fdt) + SIZE_1KB) {
@@ -171,9 +207,29 @@ DtFixupDisplay (
     return EFI_DEVICE_ERROR;
   }
 
+  Status = DtSetDisplayFixupVersion (Fdt, *BufferSize);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
   DEBUG ((DEBUG_INFO, "%a: %a %ux%u stride %u\n", __func__, NodeName,
           Info->HorizontalResolution, Info->VerticalResolution, Info->PixelsPerScanLine * 4));
   return EFI_SUCCESS;
+
+CapabilityOnly:
+  // Reapplying a completed fixup must also work when totalsize already
+  // includes the caller's entire allocation. Only a new property needs room.
+  RequiredSize = FdtTotalSize (Fdt) + (HasVersion ? 0 : SIZE_1KB);
+  if (*BufferSize < RequiredSize) {
+    *BufferSize = RequiredSize;
+    return EFI_BUFFER_TOO_SMALL;
+  }
+
+  if (RemoveFramebuffer && (FdtDelNode (Fdt, Node) != 0)) {
+    return EFI_DEVICE_ERROR;
+  }
+
+  return HasVersion ? EFI_SUCCESS : DtSetDisplayFixupVersion (Fdt, *BufferSize);
 }
 
 VOID
@@ -462,6 +518,12 @@ DtFixup (
 
   if (*BufferSize < FdtTotalSize (Fdt)) {
     *BufferSize = FdtTotalSize (Fdt);
+    // GRUB probes with size zero and retries only once after reallocating.
+    // Its first answer must include the display fixup and capability property.
+    if (((Flags & EFI_DT_APPLY_FIXUPS) != 0) && FixedPcdGetBool (PcdDisplayHandoff)) {
+      *BufferSize += SIZE_1KB;
+    }
+
     return EFI_BUFFER_TOO_SMALL;
   }
 
